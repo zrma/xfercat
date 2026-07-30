@@ -48,4 +48,4 @@ scripts/start-work.sh --work-id <work-id>
 scripts/finalize-change.sh --verify-only
 ```
 
-로컬 변경은 `jj`를 사용한다. remote 생성, push, license 선택과 release는 별도 결정이다.
+로컬 변경은 `jj`를 사용한다. 추가 push, license 선택과 release는 별도 결정이다.

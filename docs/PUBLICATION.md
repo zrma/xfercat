@@ -3,7 +3,8 @@
 ## Classification
 
 `xfercat`의 tracked surface는 `public-ready` content 기준을 사용한다. 이것은 remote의 live
-visibility 선언이 아니다. 현재 remote는 구성되지 않았고 license도 선택되지 않았다.
+visibility를 대신하는 선언이 아니다. public remote가 구성됐고 license는 아직 선택되지
+않았다.
 
 ## Publishable Content
 
@@ -28,11 +29,11 @@ visibility 선언이 아니다. 현재 remote는 구성되지 않았고 license�
 local change와 remote publication 전에 `scripts/check.sh` 및
 `scripts/check-publication-boundary.py`를 실행한다.
 
-remote 생성, push, visibility 변경, tag나 release 전에는 추가로 다음이 필요하다.
+추가 push, visibility 변경, tag나 release 전에는 다음이 필요하다.
 
 1. exact destination, owner와 live visibility 확인.
 2. 권한 있는 machine-local private-inventory gate 실행.
 3. 공개될 tree, reachable history와 change description 검사.
 4. license, package metadata와 README 선언의 정합성 확인.
 
-remote 생성, push, license 선택과 release는 각각 별도 external decision 또는 write다.
+추가 push, license 선택과 release는 각각 별도 external decision 또는 write다.

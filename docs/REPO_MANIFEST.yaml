@@ -27,7 +27,8 @@ checks:
 
 publication:
   content_standard: public-ready
-  remote_status: unconfigured
+  remote_status: configured
+  remote_visibility: public
   license_status: undecided
   policy: docs/PUBLICATION.md
 

@@ -13,7 +13,8 @@
   dry-run Review가 동작한다.
 - `--snapshot`과 Ratatui `TestBackend`가 110×32 및 80×24 representative state를 검증한다.
 - canonical validation은 `scripts/check.sh`가 소유한다.
-- remote, license, transport library와 최종 GUI/TUI 제품 선택은 결정되지 않았다.
+- public remote가 구성됐다. license, transport library와 최종 GUI/TUI 제품 선택은
+  결정되지 않았다.
 
 ## Next Work
 
@@ -30,7 +31,7 @@
 - 구현되지 않은 기능을 status나 README에서 available로 표시하지 않는다.
 - private host, credential 또는 실제 user path를 fixture나 tracked 문서에 사용하지 않는다.
 - PoC Review를 실제 transfer success로 표현하지 않는다.
-- remote 생성, push, license와 package publication은 현재 범위가 아니다.
+- 추가 push, visibility 변경, license와 package publication은 별도 승인 경계다.
 
 ## Verify
 

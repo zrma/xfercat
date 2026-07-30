@@ -36,10 +36,10 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 
 ## External State
 
-- remote: unconfigured
-- remote visibility: unknown
+- remote: configured
+- remote visibility: public
 - license: undecided
-- push or publication: not performed
+- package or release publication: not performed
 
 ## Risks
 

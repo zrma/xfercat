@@ -19,3 +19,14 @@ Evidence: `scripts/check.sh`.
 
 Evidence: `cargo test`, the three `--snapshot` states, PTY interaction smoke and
 `scripts/check.sh`.
+
+## 2026-07-30 — P1 Waybill Editing
+
+- added an isolated destination-filename rename mode
+- rejected empty, dot, parent, separator and control-character names without mutating the plan
+- added stable-ID move up/down while preserving item payload
+- rendered renamed and reordered items identically in Waybill and dry-run Review
+- added rename, reorder, compact shortcut and actual PTY interaction evidence
+
+Evidence: focused app tests, the `rename` and `review` snapshots, PTY interaction smoke and
+`scripts/check.sh`.

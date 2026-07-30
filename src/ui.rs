@@ -19,6 +19,10 @@ pub fn render(frame: &mut Frame<'_>, app: &mut App) {
         Screen::Connections => render_connections(frame, app),
         Screen::ProfileDetails => render_profile_details(frame, app),
         Screen::Workspace => render_workspace(frame, app),
+        Screen::Rename => {
+            render_workspace(frame, app);
+            render_rename(frame, app);
+        }
         Screen::Review => {
             render_workspace(frame, app);
             render_review(frame, app);
@@ -37,20 +41,26 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
 
     match kind {
         "connections" => {}
-        "workspace" | "review" => {
+        "workspace" | "rename" | "review" => {
             app.update(Action::Activate);
             app.update(Action::AddToPlan);
             app.update(Action::NextFocus);
             app.update(Action::AddToPlan);
             app.update(Action::NextFocus);
+            if matches!(kind, "rename" | "review") {
+                app.update(Action::BeginRename);
+                app.rename_buffer = "service-copy.log".into();
+            }
             if kind == "review" {
+                app.update(Action::Activate);
+                app.update(Action::MovePlanUp);
                 app.update(Action::ReviewPlan);
             }
         }
         _ => {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "snapshot must be connections, workspace, or review",
+                "snapshot must be connections, workspace, rename, or review",
             ));
         }
     }
@@ -194,7 +204,7 @@ fn render_workspace(frame: &mut Frame<'_>, app: &mut App) {
     let [browsers, waybill, footer] = Layout::vertical([
         Constraint::Percentage(48),
         Constraint::Min(10),
-        Constraint::Length(5),
+        Constraint::Length(6),
     ])
     .areas(frame.area());
     let [local, remote] =
@@ -227,7 +237,8 @@ fn render_workspace(frame: &mut Frame<'_>, app: &mut App) {
         footer,
         &[
             "Tab Focus   ↑/↓ Move   Space Add   D Remove",
-            "P Policy   R Review   Esc Connections   Q Quit",
+            "N Rename   Shift+K/J Reorder   P Policy",
+            "R Review   Esc Connections   Q Quit",
         ],
         &app.status,
     );
@@ -328,9 +339,10 @@ fn render_review(frame: &mut Frame<'_>, app: &App) {
             item.source.display()
         )));
         lines.push(Line::from(format!(
-            "   → {}  [{}]",
+            "   → {}  [{}] [{}]",
             item.destination.display(),
-            item.conflict_policy
+            item.conflict_policy,
+            item.state
         )));
     }
     lines.extend([
@@ -346,6 +358,43 @@ fn render_review(frame: &mut Frame<'_>, app: &App) {
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
             .block(Block::new().title("[REVIEW]").borders(Borders::ALL)),
+        area,
+    );
+}
+
+fn render_rename(frame: &mut Frame<'_>, app: &App) {
+    let area = centered_rect(80, 42, frame.area());
+    frame.render_widget(Clear, area);
+
+    let destination = app
+        .plan
+        .get(app.plan_selection)
+        .map(|item| item.destination.display())
+        .unwrap_or_else(|| "missing Waybill item".into());
+    frame.render_widget(
+        Paragraph::new(vec![
+            Line::styled(
+                "DESTINATION FILENAME",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Line::from(""),
+            Line::from(format!("Current  {destination}")),
+            Line::from(vec![
+                Span::raw("New      "),
+                Span::styled(
+                    &app.rename_buffer,
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::UNDERLINED),
+                ),
+            ]),
+            Line::from(""),
+            Line::from("Enter Apply   Esc Cancel"),
+        ])
+        .wrap(Wrap { trim: false })
+        .block(Block::new().title("[RENAME]").borders(Borders::ALL)),
         area,
     );
 }

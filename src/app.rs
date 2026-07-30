@@ -8,6 +8,7 @@ pub enum Screen {
     Connections,
     ProfileDetails,
     Workspace,
+    Rename,
     Review,
 }
 
@@ -39,6 +40,11 @@ pub enum Action {
     AddToPlan,
     RemovePlanItem,
     CycleConflictPolicy,
+    BeginRename,
+    InputRenameChar(char),
+    BackspaceRename,
+    MovePlanUp,
+    MovePlanDown,
     ReviewPlan,
     Quit,
 }
@@ -56,6 +62,7 @@ pub struct App {
     pub remote_selection: usize,
     pub plan: Vec<TransferPlanItem>,
     pub plan_selection: usize,
+    pub rename_buffer: String,
     pub status: String,
     next_plan_id: u64,
 }
@@ -123,6 +130,7 @@ impl App {
             remote_selection: 1,
             plan: Vec::new(),
             plan_selection: 0,
+            rename_buffer: String::new(),
             status: "Choose a complete profile; editing is a separate action.".into(),
             next_plan_id: 1,
         }
@@ -142,6 +150,7 @@ impl App {
                 }
             }
             Screen::Workspace => self.update_workspace(action),
+            Screen::Rename => self.update_rename(action),
             Screen::Review => {
                 if matches!(action, Action::Back | Action::Activate) {
                     self.screen = Screen::Workspace;
@@ -198,6 +207,21 @@ impl App {
                     self.status = format!("Conflict policy: {}.", item.conflict_policy);
                 }
             }
+            Action::BeginRename if self.focus == Focus::Waybill => {
+                if let Some(item) = self.plan.get(self.plan_selection) {
+                    self.rename_buffer = destination_file_name(&item.destination.path)
+                        .unwrap_or_default()
+                        .to_owned();
+                    self.screen = Screen::Rename;
+                    self.status = format!("Renaming Waybill item #{}.", item.id);
+                }
+            }
+            Action::MovePlanUp if self.focus == Focus::Waybill => {
+                self.move_plan_item(false);
+            }
+            Action::MovePlanDown if self.focus == Focus::Waybill => {
+                self.move_plan_item(true);
+            }
             Action::ReviewPlan | Action::Activate
                 if self.focus == Focus::Waybill && !self.plan.is_empty() =>
             {
@@ -207,6 +231,40 @@ impl App {
             Action::Back => {
                 self.screen = Screen::Connections;
                 self.status = "Connection picker; profiles remain unchanged.".into();
+            }
+            _ => {}
+        }
+    }
+
+    fn update_rename(&mut self, action: Action) {
+        match action {
+            Action::InputRenameChar(character) if !character.is_control() => {
+                self.rename_buffer.push(character);
+            }
+            Action::BackspaceRename => {
+                self.rename_buffer.pop();
+            }
+            Action::Activate => {
+                let Some(item) = self.plan.get_mut(self.plan_selection) else {
+                    self.screen = Screen::Workspace;
+                    self.status = "Waybill item no longer exists.".into();
+                    return;
+                };
+                match renamed_destination(&item.destination.path, &self.rename_buffer) {
+                    Ok(path) => {
+                        item.destination.path = path;
+                        let item_id = item.id;
+                        self.screen = Screen::Workspace;
+                        self.status = format!("Renamed destination for Waybill item #{item_id}.");
+                    }
+                    Err(message) => {
+                        self.status = message.into();
+                    }
+                }
+            }
+            Action::Back => {
+                self.screen = Screen::Workspace;
+                self.status = "Rename cancelled; destination unchanged.".into();
             }
             _ => {}
         }
@@ -285,10 +343,62 @@ impl App {
         self.status = format!("Waybill contains {} item(s).", self.plan.len());
     }
 
+    fn move_plan_item(&mut self, forward: bool) {
+        if self.plan.is_empty() {
+            return;
+        }
+        let target = if forward {
+            self.plan_selection.checked_add(1)
+        } else {
+            self.plan_selection.checked_sub(1)
+        };
+        let Some(target) = target.filter(|target| *target < self.plan.len()) else {
+            self.status = if forward {
+                "Waybill item is already last.".into()
+            } else {
+                "Waybill item is already first.".into()
+            };
+            return;
+        };
+
+        let item_id = self.plan[self.plan_selection].id;
+        self.plan.swap(self.plan_selection, target);
+        self.plan_selection = target;
+        self.status = format!(
+            "Moved Waybill item #{item_id} {}.",
+            if forward { "down" } else { "up" }
+        );
+    }
+
     pub fn connected_profile(&self) -> Option<&ConnectionProfile> {
         let id = self.connected_profile_id.as_deref()?;
         self.profiles.iter().find(|profile| profile.id == id)
     }
+}
+
+fn destination_file_name(path: &str) -> Option<&str> {
+    path.rsplit_once('/')
+        .map(|(_, file_name)| file_name)
+        .filter(|file_name| !file_name.is_empty())
+}
+
+fn renamed_destination(path: &str, file_name: &str) -> Result<String, &'static str> {
+    if file_name.is_empty() {
+        return Err("Filename cannot be empty.");
+    }
+    if matches!(file_name, "." | "..") {
+        return Err("Filename cannot be . or ..");
+    }
+    if file_name.contains('/') || file_name.contains('\\') {
+        return Err("Filename cannot contain a path separator.");
+    }
+    if file_name.chars().any(char::is_control) {
+        return Err("Filename cannot contain control characters.");
+    }
+    let Some((parent, _)) = path.rsplit_once('/') else {
+        return Err("Destination has no parent path.");
+    };
+    Ok(format!("{parent}/{file_name}"))
 }
 
 fn move_index(current: usize, length: usize, forward: bool) -> usize {
@@ -379,5 +489,97 @@ mod tests {
         app.update(Action::RemovePlanItem);
 
         assert_eq!(app.plan.len(), 1);
+    }
+
+    #[test]
+    fn rename_changes_only_the_destination_leaf() {
+        let mut app = staged_app();
+        let original = app.plan[1].clone();
+
+        app.update(Action::BeginRename);
+        clear_rename_buffer(&mut app);
+        for character in "service-copy.log".chars() {
+            app.update(Action::InputRenameChar(character));
+        }
+        app.update(Action::Activate);
+
+        assert_eq!(app.screen, Screen::Workspace);
+        assert_eq!(app.plan[1].source, original.source);
+        assert_eq!(
+            app.plan[1].destination.profile_id,
+            original.destination.profile_id
+        );
+        assert_eq!(
+            app.plan[1].destination.path,
+            "/workspace/incoming/service-copy.log"
+        );
+    }
+
+    #[test]
+    fn invalid_rename_preserves_the_plan_and_stays_in_rename_mode() {
+        let mut app = staged_app();
+        let original = app.plan.clone();
+
+        app.update(Action::BeginRename);
+        for invalid_name in ["", ".", "..", "nested/name", r"nested\name"] {
+            clear_rename_buffer(&mut app);
+            for character in invalid_name.chars() {
+                app.update(Action::InputRenameChar(character));
+            }
+            app.update(Action::Activate);
+
+            assert_eq!(app.screen, Screen::Rename);
+            assert_eq!(app.plan, original);
+        }
+        assert_eq!(app.status, "Filename cannot contain a path separator.");
+    }
+
+    #[test]
+    fn reorder_moves_the_selected_stable_item_without_changing_payload() {
+        let mut app = staged_app();
+        let selected = app.plan[1].clone();
+
+        app.update(Action::MovePlanUp);
+
+        assert_eq!(app.plan_selection, 0);
+        assert_eq!(app.plan[0], selected);
+
+        app.update(Action::MovePlanUp);
+        assert_eq!(app.plan[0], selected);
+        assert_eq!(app.status, "Waybill item is already first.");
+
+        app.update(Action::MovePlanDown);
+        assert_eq!(app.plan_selection, 1);
+        assert_eq!(app.plan[1], selected);
+    }
+
+    #[test]
+    fn cancelling_rename_discards_the_edit_buffer() {
+        let mut app = staged_app();
+        let original = app.plan.clone();
+
+        app.update(Action::BeginRename);
+        app.update(Action::InputRenameChar('x'));
+        app.update(Action::Back);
+
+        assert_eq!(app.screen, Screen::Workspace);
+        assert_eq!(app.plan, original);
+        assert_eq!(app.status, "Rename cancelled; destination unchanged.");
+    }
+
+    fn staged_app() -> App {
+        let mut app = App::demo();
+        app.update(Action::Activate);
+        app.update(Action::AddToPlan);
+        app.update(Action::NextFocus);
+        app.update(Action::AddToPlan);
+        app.update(Action::NextFocus);
+        app
+    }
+
+    fn clear_rename_buffer(app: &mut App) {
+        while !app.rename_buffer.is_empty() {
+            app.update(Action::BackspaceRename);
+        }
     }
 }

@@ -2,7 +2,7 @@ use std::{env, io};
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use xfercat::{
-    app::{Action, App},
+    app::{Action, App, Screen},
     ui,
 };
 
@@ -16,7 +16,7 @@ fn main() -> io::Result<()> {
     if !arguments.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: xfercat [--snapshot connections|workspace|review]",
+            "usage: xfercat [--snapshot connections|workspace|rename|review]",
         ));
     }
 
@@ -34,7 +34,7 @@ fn run_interactive(terminal: &mut ratatui::DefaultTerminal) -> io::Result<()> {
         if key.kind != KeyEventKind::Press {
             continue;
         }
-        if let Some(action) = action_for(key.code)
+        if let Some(action) = action_for(app.screen, key.code)
             && app.update(action)
         {
             return Ok(());
@@ -42,7 +42,17 @@ fn run_interactive(terminal: &mut ratatui::DefaultTerminal) -> io::Result<()> {
     }
 }
 
-fn action_for(code: KeyCode) -> Option<Action> {
+fn action_for(screen: Screen, code: KeyCode) -> Option<Action> {
+    if screen == Screen::Rename {
+        return match code {
+            KeyCode::Enter => Some(Action::Activate),
+            KeyCode::Esc => Some(Action::Back),
+            KeyCode::Backspace => Some(Action::BackspaceRename),
+            KeyCode::Char(character) => Some(Action::InputRenameChar(character)),
+            _ => None,
+        };
+    }
+
     match code {
         KeyCode::Char('q') => Some(Action::Quit),
         KeyCode::Up | KeyCode::Char('k') => Some(Action::Up),
@@ -54,6 +64,9 @@ fn action_for(code: KeyCode) -> Option<Action> {
         KeyCode::Char(' ') => Some(Action::AddToPlan),
         KeyCode::Char('d') => Some(Action::RemovePlanItem),
         KeyCode::Char('p') => Some(Action::CycleConflictPolicy),
+        KeyCode::Char('n' | 'N') => Some(Action::BeginRename),
+        KeyCode::Char('K') => Some(Action::MovePlanUp),
+        KeyCode::Char('J') => Some(Action::MovePlanDown),
         KeyCode::Char('r') => Some(Action::ReviewPlan),
         _ => None,
     }

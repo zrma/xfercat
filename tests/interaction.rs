@@ -31,6 +31,20 @@ fn review_snapshot_is_explicitly_non_executing() {
     assert!(snapshot.contains("DRY-RUN TRANSFER REVIEW"));
     assert!(snapshot.contains("no transport adapter is connected"));
     assert!(snapshot.contains("Enter Accept review"));
+    assert!(snapshot.contains("local:/workspace/incoming/service-copy.log"));
+    let download = snapshot.find("#2 ↓").expect("download item");
+    let upload = snapshot.find("#1 ↑").expect("upload item");
+    assert!(download < upload, "reordered item must render first");
+}
+
+#[test]
+fn rename_snapshot_shows_current_destination_and_edit_buffer() {
+    let snapshot = ui::snapshot("rename").expect("rename snapshot");
+
+    assert!(snapshot.contains("DESTINATION FILENAME"));
+    assert!(snapshot.contains("local:/workspace/incoming/service.log"));
+    assert!(snapshot.contains("service-copy.log"));
+    assert!(snapshot.contains("Enter Apply   Esc Cancel"));
 }
 
 #[test]
@@ -41,5 +55,6 @@ fn compact_terminal_keeps_connection_auth_and_all_workspace_keys_visible() {
     assert!(connections.contains("Key:archive-key"));
     assert!(connections.contains("operator@archive.example"));
     assert!(workspace.contains("Space Add   D Remove"));
+    assert!(workspace.contains("N Rename   Shift+K/J Reorder"));
     assert!(workspace.contains("Esc Connections   Q Quit"));
 }

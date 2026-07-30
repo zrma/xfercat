@@ -24,11 +24,21 @@ transfer는 아직 구현되지 않았다.
 cargo run
 cargo run -- --snapshot connections
 cargo run -- --snapshot workspace
+cargo run -- --snapshot rename
 cargo run -- --snapshot review
 ```
 
 PoC의 profile, path와 전송 결과는 모두 synthetic이다. Review는 dry-run이며 파일을
 전송하거나 덮어쓰지 않는다.
+
+Workspace controls:
+
+- `Tab`: LOCAL, REMOTE와 WAYBILL focus 이동
+- `Space`: selected browser item을 Waybill에 추가
+- `N`: destination filename rename
+- `Shift+K` / `Shift+J`: selected Waybill item reorder
+- `P`: conflict policy 변경
+- `R`: exact transfer plan Review
 
 ## Repository Workflow
 

@@ -15,6 +15,8 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - local work start and finalize scripts
 - Rust 2024 domain and application state
 - Ratatui/Crossterm Connections, Browser, Waybill and Review shell
+- destination-leaf rename with invalid-name rejection
+- stable-ID Waybill reorder reflected in Review
 - profile-selection, exact-endpoint and Waybill interaction tests
 - deterministic 110×32 and compact 80×24 terminal snapshots
 
@@ -23,7 +25,7 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - editable or persistent connection catalog
 - real connection establishment
 - filesystem-backed local or remote browser
-- plan rename, reorder and item-level execution results
+- item-level execution results
 - transfer execution
 - network transport
 - packaging, release or updater

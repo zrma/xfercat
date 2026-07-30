@@ -9,7 +9,8 @@
 
 - Git-backed colocated `jj` repository가 준비됐다.
 - product, architecture, publication과 agent harness contract가 문서화됐다.
-- Connections, local/remote Browser, Waybill add/edit/remove와 dry-run Review가 동작한다.
+- Connections, local/remote Browser, Waybill add/remove, destination rename, stable reorder와
+  dry-run Review가 동작한다.
 - `--snapshot`과 Ratatui `TestBackend`가 110×32 및 80×24 representative state를 검증한다.
 - canonical validation은 `scripts/check.sh`가 소유한다.
 - remote, license, transport library와 최종 GUI/TUI 제품 선택은 결정되지 않았다.
@@ -20,8 +21,8 @@
 
 권장 순서는 다음과 같다.
 
-1. plan item rename/reorder와 item-level result state를 완성한다.
-2. filesystem mutation 없이 typed transport request/result boundary를 추가한다.
+1. filesystem mutation 없이 typed transport request/result boundary를 추가한다.
+2. item-level success, failure, skip과 cancellation state transition을 synthetic executor로 검증한다.
 3. SFTP library와 OpenSSH interoperability를 별도 decision으로 비교한다.
 
 ## Boundaries

@@ -13,7 +13,7 @@
 
 - [x] read-only connection profile picker with synthetic profiles
 - [x] synthetic local/remote dual-pane browser fixture
-- [ ] Waybill rename and reorder
+- [x] Waybill destination rename and stable-ID reorder
 - [x] Waybill add, conflict-policy edit and remove
 - [x] dry-run preview with source, destination, direction and conflict policy
 - [ ] item-level success, failure, skip and cancellation states

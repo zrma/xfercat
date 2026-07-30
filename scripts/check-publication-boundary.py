@@ -26,12 +26,9 @@ PATTERNS = (
 
 
 def tracked_files() -> list[Path]:
-    result = subprocess.run(
-        ["jj", "file", "list"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
+    result = run_first_available(
+        (["jj", "file", "list"], ["git", "ls-files"]),
+        "tracked files",
     )
     paths: list[Path] = []
     for line in result.stdout.splitlines():
@@ -42,14 +39,35 @@ def tracked_files() -> list[Path]:
 
 
 def change_descriptions() -> str:
-    result = subprocess.run(
-        ["jj", "log", "-r", "::@", "--no-graph", "-T", 'description ++ "\n"'],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
+    return run_first_available(
+        (
+            ["jj", "log", "-r", "::@", "--no-graph", "-T", 'description ++ "\n"'],
+            ["git", "log", "--format=%B", "HEAD"],
+        ),
+        "change descriptions",
+    ).stdout
+
+
+def run_first_available(commands: tuple[list[str], ...], label: str) -> subprocess.CompletedProcess[str]:
+    failures: list[str] = []
+    for command in commands:
+        try:
+            result = subprocess.run(
+                command,
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            failures.append(f"{command[0]} is unavailable")
+            continue
+        if result.returncode == 0:
+            return result
+        failures.append(f"{command[0]} exited with {result.returncode}")
+    raise RuntimeError(
+        f"cannot read {label}: {', '.join(failures)}"
     )
-    return result.stdout
 
 
 def scan_text(label: str, text: str) -> list[str]:

@@ -1,0 +1,24 @@
+schema_version = 1
+framework_version = "1.0.0"
+source_kind = "release"
+source_revision = "v1.0.0"
+profiles = ["vcs-jj", "public-repository", "openai-agent-guidance"]
+
+[project]
+name = "xfercat"
+objective = "저장된 연결을 실수 없이 선택하고, 로컬과 원격 사이의 파일 작업을 독립된 transfer plan으로\n구성, 검토, 수정한 뒤 명시적으로 일괄 실행하는 파일 전송 경험을 제공한다."
+publication_class = "public"
+
+[overlay]
+agents_first_read = ".ai-first/overlays/agents-first-read.md"
+agents_project = ".ai-first/overlays/agents-project.md"
+harness_project = ".ai-first/overlays/harness-project.md"
+
+[output]
+agents = "AGENTS.md"
+harness = "docs/agent-harness.md"
+standalone_check = ".ai-first/check.py"
+lock = ".ai-first.lock"
+
+[checks]
+publication = "scripts/check-publication-boundary.py"

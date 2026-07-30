@@ -9,6 +9,15 @@ scripts/check-repository-contract.py
 scripts/check-publication-boundary.py --self-test
 scripts/check-publication-boundary.py
 
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test
+cargo build
+
+for snapshot in connections workspace review; do
+  cargo run --quiet -- --snapshot "$snapshot" >/dev/null
+done
+
 sh -n scripts/check.sh
 sh -n scripts/check-agent-harness-interface.sh
 bash -n scripts/start-work.sh

@@ -4,7 +4,7 @@ Updated: 2026-07-30
 
 ## Verdict
 
-Repository foundation is ready; product implementation has not started.
+The synthetic product-foundation PoC is executable; real file transfer is not implemented.
 
 ## Implemented
 
@@ -13,19 +13,24 @@ Repository foundation is ready; product implementation has not started.
 - product, architecture, handoff, roadmap and publication contracts
 - repository contract and tracked-artifact privacy checks
 - local work start and finalize scripts
+- Rust 2024 domain and application state
+- Ratatui/Crossterm Connections, Browser, Waybill and Review shell
+- profile-selection, exact-endpoint and Waybill interaction tests
+- deterministic 110×32 and compact 80×24 terminal snapshots
 
 ## Not Implemented
 
-- executable or application runtime
-- connection catalog and session establishment
-- local or remote browser
-- Waybill and transfer execution
+- editable or persistent connection catalog
+- real connection establishment
+- filesystem-backed local or remote browser
+- plan rename, reorder and item-level execution results
+- transfer execution
 - network transport
 - packaging, release or updater
 
 ## Active Work
 
-- `docs/todo-p0-product-foundation/spec.md`
+- none
 
 ## External State
 
@@ -36,6 +41,6 @@ Repository foundation is ready; product implementation has not started.
 
 ## Risks
 
-- runtime and interface choice can affect delivery speed and native interaction quality.
+- the TUI is a PoC adapter, not a final GUI/TUI product commitment.
 - transport library choice can affect OpenSSH compatibility, host verification and credential handling.
 - plan persistence needs a privacy and crash-recovery contract before durable storage is added.

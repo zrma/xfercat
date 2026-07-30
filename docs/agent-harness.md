@@ -106,7 +106,7 @@ external write, remote 생성, license, published history rewrite와 승인되�
 - `TransferPlan`은 browser selection과 분리된 first-class state다.
 - 각 `TransferPlanItem`은 전체 endpoint, 방향, conflict policy와 실행 상태를 표시할 수 있어야 한다.
 - 실행 성공, 실패, skip과 보류 상태를 항목별로 유지하며 전체 queue를 암묵적으로 비우지 않는다.
-- runtime과 UI toolkit 선택 전에도 domain contract와 fixture는 interface-agnostic하게 유지한다.
+- PoC runtime과 무관하게 domain contract와 fixture는 interface-agnostic하게 유지한다.
 
 ## Related Documents
 

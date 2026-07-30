@@ -2,7 +2,7 @@
 
 ## Status
 
-Product contract is defined; no functional client is implemented yet.
+The core interaction is available as a synthetic TUI PoC. Real file transfer is not implemented.
 
 ## Problem
 
@@ -52,8 +52,9 @@ Tagline: **Plan first. Transfer once.**
 
 ## Open Product Decisions
 
-- 첫 interface를 TUI로 할지 native 또는 webview GUI로 할지.
+- 최종 product interface를 TUI로 유지할지 native 또는 webview GUI adapter로 확장할지.
 - 첫 transport 범위를 SFTP only로 할지 SCP-compatible operation까지 포함할지.
 - plan persistence를 process lifetime으로 제한할지 안전한 local draft로 저장할지.
 
-결정 조건과 acceptance는 `docs/todo-p0-product-foundation/spec.md`가 소유한다.
+PoC runtime 결정은 `docs/decisions/0001-poc-runtime.md`, 다음 acceptance는
+`docs/roadmap.md`가 소유한다.

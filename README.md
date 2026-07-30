@@ -5,8 +5,8 @@ Plan first. Transfer once.
 `xfercat`은 저장된 연결을 실수 없이 선택하고, 로컬과 원격 사이의 파일 전송을
 실행 전에 하나의 명시적인 계획으로 검토하는 파일 전송 도구다.
 
-현재 상태는 AI-first repository foundation이다. 실행 가능한 파일 전송 클라이언트는
-아직 구현되지 않았다.
+현재 상태는 실행 가능한 synthetic TUI PoC다. 실제 filesystem mutation과 network file
+transfer는 아직 구현되지 않았다.
 
 ## Product Direction
 
@@ -17,6 +17,18 @@ Plan first. Transfer once.
 
 제품 경계는 [Product](docs/PRODUCT.md), 현재 상태와 다음 작업은
 [Handoff](docs/HANDOFF.md)에서 확인한다.
+
+## Run The PoC
+
+```sh
+cargo run
+cargo run -- --snapshot connections
+cargo run -- --snapshot workspace
+cargo run -- --snapshot review
+```
+
+PoC의 profile, path와 전송 결과는 모두 synthetic이다. Review는 dry-run이며 파일을
+전송하거나 덮어쓰지 않는다.
 
 ## Repository Workflow
 

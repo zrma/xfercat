@@ -1,6 +1,6 @@
 # Spec: P0 Product Foundation
 
-Status: planned
+Status: completed
 
 ## Goal
 
@@ -25,18 +25,20 @@ connection picker, browser와 Waybill semantics를 검증할 수 있는 test bou
 
 | ID | Status | Verify | Work item |
 | --- | --- | --- | --- |
-| C1 | todo | decision record review | runtime과 interface 선택 근거가 비교 가능한 evidence를 포함한다 |
-| C2 | todo | focused domain tests | profile selection이 profile state를 암묵적으로 수정하지 않는다 |
-| C3 | todo | focused domain tests | plan item이 browser focus와 독립된 exact endpoints를 유지한다 |
-| C4 | todo | rendered or snapshot smoke | Connections, Browser와 Waybill의 representative state를 확인한다 |
-| C5 | todo | `scripts/check.sh` | repository 전체 gate가 통과한다 |
+| C1 | done | `docs/decisions/0001-poc-runtime.md` | runtime과 interface 선택 근거가 비교 가능한 evidence를 포함한다 |
+| C2 | done | `cargo test` | profile selection이 profile state를 암묵적으로 수정하지 않는다 |
+| C3 | done | `cargo test` | plan item이 browser focus와 독립된 exact endpoints를 유지한다 |
+| C4 | done | snapshots and PTY smoke | Connections, Browser와 Waybill의 representative state를 확인한다 |
+| C5 | done | `scripts/check.sh` | repository 전체 gate가 통과한다 |
 
 ## Required Evidence
 
-- 선택한 runtime과 toolkit의 최소 prototype 또는 공식 capability evidence
-- synthetic fixtures를 사용하는 test 결과
-- representative UI state의 rendered, snapshot 또는 terminal smoke
-- dependency와 packaging 영향
+- Rust/Ratatui/Crossterm 결정과 공식 capability reference: `docs/decisions/0001-poc-runtime.md`
+- synthetic domain and interaction tests: `src/app.rs`, `tests/interaction.rs`
+- representative render: `--snapshot connections|workspace|review`
+- compact terminal regression: 80×24 `TestBackend` snapshot
+- live interaction: Connections부터 Review와 terminal restore까지 PTY smoke
+- dependency and packaging impact: Cargo binary only; app packaging은 미선택
 
 ## Publication Impact
 

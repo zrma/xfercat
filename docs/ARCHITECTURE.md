@@ -2,7 +2,8 @@
 
 ## Status
 
-Domain boundary is proposed. Runtime, UI toolkit and transport library are not selected.
+The PoC uses a Rust 2024 core with a Ratatui/Crossterm validation shell. Transport is not selected.
+The runtime rationale is recorded in `docs/decisions/0001-poc-runtime.md`.
 
 ## Domain Boundary
 
@@ -63,15 +64,15 @@ transport는 structured request와 typed result를 받는다. shell command 문�
 
 ## Initial Vertical Slice
 
-runtime 선택 뒤 첫 slice는 실제 private host 없이 synthetic local endpoint 두 개를 사용한다.
-connection picker의 read-only profile 선택, 두 pane 탐색, Waybill item add/edit/remove와
-dry-run execution preview를 end-to-end로 검증한다. network transport는 그 다음 slice에서
-같은 domain contract에 연결한다.
+첫 slice는 실제 private host 없이 synthetic local/remote endpoint를 사용한다. connection
+picker의 read-only profile 선택, 두 pane 탐색, Waybill item add/edit/remove와 dry-run
+execution preview를 end-to-end로 검증한다. `src/domain.rs`가 transfer types,
+`src/app.rs`가 interaction state, `src/ui.rs`가 Ratatui rendering과 deterministic snapshot을
+소유한다. network transport는 후속 slice에서 같은 domain contract에 연결한다.
 
 ## Deferred Decisions
 
-- language and application runtime
-- TUI or GUI toolkit
+- final TUI or GUI product interface
 - async runtime and cancellation primitive
 - SFTP library and OpenSSH interoperability boundary
 - plan persistence format and migration policy

@@ -6,15 +6,16 @@
 - [x] define product and architecture boundaries
 - [x] install canonical AI-first agent harness
 - [x] add local verification and publication boundary gates
-- [ ] choose runtime and first interface
-- [ ] define executable domain fixtures and vertical-slice acceptance
+- [x] choose Rust/Ratatui for the PoC validation shell
+- [x] define executable domain fixtures and vertical-slice acceptance
 
 ## P1 Local Transfer Plan
 
-- [ ] read-only connection profile picker with synthetic profiles
-- [ ] local/local dual-pane browser fixture
-- [ ] Waybill add, edit, remove and reorder
-- [ ] dry-run preview with source, destination, direction and conflict policy
+- [x] read-only connection profile picker with synthetic profiles
+- [x] synthetic local/remote dual-pane browser fixture
+- [ ] Waybill rename and reorder
+- [x] Waybill add, conflict-policy edit and remove
+- [x] dry-run preview with source, destination, direction and conflict policy
 - [ ] item-level success, failure, skip and cancellation states
 
 ## P2 Remote Transport

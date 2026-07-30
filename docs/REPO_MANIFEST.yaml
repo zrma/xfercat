@@ -14,7 +14,7 @@ entrypoints:
   publication: docs/PUBLICATION.md
 
 active_work_glob: docs/todo-*/spec.md
-active_work: docs/todo-p0-product-foundation/spec.md
+active_work: none
 required_todo_files:
   - spec.md
   - open-questions.md
@@ -43,7 +43,8 @@ vcs:
   push_requires_explicit_permission: true
 
 runtime:
-  status: undecided
-  interface: TUI or GUI
+  status: selected-for-poc
+  core: Rust 2024
+  interface: Ratatui TUI validation shell
   executable: xfercat
-  decision_work: docs/todo-p0-product-foundation/spec.md
+  decision: docs/decisions/0001-poc-runtime.md

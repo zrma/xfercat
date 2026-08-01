@@ -16,7 +16,7 @@ fn main() -> io::Result<()> {
     if !arguments.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: xfercat [--snapshot connections|workspace|rename|review]",
+            "usage: xfercat [--snapshot connections|profile-add|profile-edit|workspace|rename|review]",
         ));
     }
 
@@ -43,6 +43,19 @@ fn run_interactive(terminal: &mut ratatui::DefaultTerminal) -> io::Result<()> {
 }
 
 fn action_for(screen: Screen, code: KeyCode) -> Option<Action> {
+    if screen == Screen::ProfileEditor {
+        return match code {
+            KeyCode::Enter => Some(Action::Activate),
+            KeyCode::Esc => Some(Action::Back),
+            KeyCode::Tab | KeyCode::Down => Some(Action::NextProfileField),
+            KeyCode::BackTab | KeyCode::Up => Some(Action::PreviousProfileField),
+            KeyCode::Left | KeyCode::Right => Some(Action::ToggleProfileAuthentication),
+            KeyCode::Backspace => Some(Action::BackspaceProfile),
+            KeyCode::Char(character) => Some(Action::InputProfileChar(character)),
+            _ => None,
+        };
+    }
+
     if screen == Screen::Rename {
         return match code {
             KeyCode::Enter => Some(Action::Activate),
@@ -60,7 +73,8 @@ fn action_for(screen: Screen, code: KeyCode) -> Option<Action> {
         KeyCode::Enter => Some(Action::Activate),
         KeyCode::Esc => Some(Action::Back),
         KeyCode::Tab => Some(Action::NextFocus),
-        KeyCode::Char('e') => Some(Action::EditProfile),
+        KeyCode::Char('a' | 'A') => Some(Action::AddProfile),
+        KeyCode::Char('e' | 'E') => Some(Action::EditProfile),
         KeyCode::Char(' ') => Some(Action::AddToPlan),
         KeyCode::Char('d') => Some(Action::RemovePlanItem),
         KeyCode::Char('p') => Some(Action::CycleConflictPolicy),

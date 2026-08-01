@@ -2,7 +2,8 @@
 
 ## Status
 
-The core interaction is available as a synthetic TUI PoC. Real file transfer is not implemented.
+The core interaction, including process-lifetime profile add/edit, is available as a synthetic TUI
+PoC. Real file transfer and persistent connection storage are not implemented.
 
 ## Problem
 

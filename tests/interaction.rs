@@ -9,7 +9,24 @@ fn connections_snapshot_keeps_profile_attributes_visible() {
     assert!(snapshot.contains("SFTP"));
     assert!(snapshot.contains("SSH Agent"));
     assert!(snapshot.contains("Enter Connect"));
-    assert!(snapshot.contains("E Details"));
+    assert!(snapshot.contains("A Add"));
+    assert!(snapshot.contains("E Edit"));
+}
+
+#[test]
+fn profile_forms_show_editable_fields_and_process_lifetime_boundary() {
+    let create = ui::snapshot("profile-add").expect("profile add snapshot");
+    let edit = ui::snapshot("profile-edit").expect("profile edit snapshot");
+
+    assert!(create.contains("xfercat · Add profile"));
+    assert!(create.contains("[PROFILE FORM]"));
+    assert!(create.contains("SSH Agent"));
+    assert!(create.contains("Enter Save   Esc Cancel"));
+    assert!(create.contains("saved only for this process"));
+    assert!(edit.contains("xfercat · Edit profile"));
+    assert!(edit.contains("dev-box"));
+    assert!(edit.contains("deploy"));
+    assert!(edit.contains("dev.example"));
 }
 
 #[test]
@@ -50,10 +67,14 @@ fn rename_snapshot_shows_current_destination_and_edit_buffer() {
 #[test]
 fn compact_terminal_keeps_connection_auth_and_all_workspace_keys_visible() {
     let connections = ui::snapshot_at("connections", 80, 24).expect("compact connections");
+    let profile = ui::snapshot_at("profile-edit", 80, 24).expect("compact profile editor");
     let workspace = ui::snapshot_at("workspace", 80, 24).expect("compact workspace");
 
     assert!(connections.contains("Key:archive-key"));
     assert!(connections.contains("operator@archive.example"));
+    assert!(connections.contains("A Add   E Edit"));
+    assert!(profile.contains("Tab/Shift+Tab Field"));
+    assert!(profile.contains("Enter Save   Esc Cancel"));
     assert!(workspace.contains("Space Add   D Remove"));
     assert!(workspace.contains("N Rename   Shift+K/J Reorder"));
     assert!(workspace.contains("Esc Connections   Q Quit"));

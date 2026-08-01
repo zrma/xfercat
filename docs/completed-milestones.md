@@ -30,3 +30,14 @@ Evidence: `cargo test`, the three `--snapshot` states, PTY interaction smoke and
 
 Evidence: focused app tests, the `rename` and `review` snapshots, PTY interaction smoke and
 `scripts/check.sh`.
+
+## 2026-08-01 — P1 Profile Catalog Editing
+
+- added create and edit forms that remain isolated from Connect
+- preserved stable profile identity and previously staged endpoints during edit
+- rejected empty, duplicate and invalid fields without changing the catalog
+- supported SSH Agent and non-secret key references without storing credential material
+- kept profile changes process-local and left delete, persistence and OpenSSH import deferred
+
+Evidence: six profile app tests, `profile-add` and `profile-edit` snapshots, 80×24 regression,
+PTY add/save/connect/edit/cancel/quit smoke with terminal restoration and `scripts/check.sh`.

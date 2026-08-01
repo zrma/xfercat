@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-07-30
+Updated: 2026-08-01
 
 ## Verdict
 
@@ -15,6 +15,8 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - local work start and finalize scripts
 - Rust 2024 domain and application state
 - Ratatui/Crossterm Connections, Browser, Waybill and Review shell
+- process-lifetime synthetic connection profile add/edit form
+- stable profile identity, duplicate-label rejection and SSH Agent/key-reference selection
 - destination-leaf rename with invalid-name rejection
 - stable-ID Waybill reorder reflected in Review
 - profile-selection, exact-endpoint and Waybill interaction tests
@@ -22,7 +24,8 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 
 ## Not Implemented
 
-- editable or persistent connection catalog
+- persistent connection catalog
+- connection profile delete
 - real connection establishment
 - filesystem-backed local or remote browser
 - item-level execution results
@@ -44,5 +47,6 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 ## Risks
 
 - the TUI is a PoC adapter, not a final GUI/TUI product commitment.
+- added and edited profiles return to the synthetic fixture when the process exits.
 - transport library choice can affect OpenSSH compatibility, host verification and credential handling.
 - plan persistence needs a privacy and crash-recovery contract before durable storage is added.

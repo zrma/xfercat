@@ -23,13 +23,25 @@ transfer는 아직 구현되지 않았다.
 ```sh
 cargo run
 cargo run -- --snapshot connections
+cargo run -- --snapshot profile-add
+cargo run -- --snapshot profile-edit
 cargo run -- --snapshot workspace
 cargo run -- --snapshot rename
 cargo run -- --snapshot review
 ```
 
 PoC의 profile, path와 전송 결과는 모두 synthetic이다. Review는 dry-run이며 파일을
-전송하거나 덮어쓰지 않는다.
+전송하거나 덮어쓰지 않는다. 추가·편집한 profile은 현재 process에서만 유지되며 앱을
+재시작하면 초기 fixture로 돌아간다.
+
+Connection controls:
+
+- `A`: synthetic profile 추가
+- `E`: selected profile 편집
+- `Tab` / `Shift+Tab`: profile form field 이동
+- `Left` / `Right`: SSH Agent와 key reference 전환
+- `Enter`: profile 저장 또는 selected profile 연결
+- `Esc`: form 취소
 
 Workspace controls:
 

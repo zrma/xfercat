@@ -14,7 +14,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test
 cargo build
 
-for snapshot in connections workspace rename review; do
+for snapshot in connections profile-add profile-edit workspace rename review; do
   cargo run --quiet -- --snapshot "$snapshot" >/dev/null
 done
 

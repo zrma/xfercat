@@ -11,6 +11,8 @@
 - product, architecture, publication과 agent harness contract가 문서화됐다.
 - Connections, local/remote Browser, Waybill add/remove, destination rename, stable reorder와
   dry-run Review가 동작한다.
+- Connections에서 synthetic profile을 process lifetime 동안 추가·편집할 수 있고, edit은
+  stable identity와 이미 staged된 endpoint를 보존한다.
 - `--snapshot`과 Ratatui `TestBackend`가 110×32 및 80×24 representative state를 검증한다.
 - canonical validation은 `scripts/check.sh`가 소유한다.
 - public remote가 구성됐다. license, transport library와 최종 GUI/TUI 제품 선택은

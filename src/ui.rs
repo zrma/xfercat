@@ -10,14 +10,14 @@ use ratatui::{
 };
 
 use crate::{
-    app::{Action, App, Focus, Screen},
+    app::{Action, App, Focus, ProfileAuthentication, ProfileField, Screen},
     domain::{BrowserEntry, TransferPlanItem},
 };
 
 pub fn render(frame: &mut Frame<'_>, app: &mut App) {
     match app.screen {
         Screen::Connections => render_connections(frame, app),
-        Screen::ProfileDetails => render_profile_details(frame, app),
+        Screen::ProfileEditor => render_profile_editor(frame, app),
         Screen::Workspace => render_workspace(frame, app),
         Screen::Rename => {
             render_workspace(frame, app);
@@ -41,6 +41,12 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
 
     match kind {
         "connections" => {}
+        "profile-add" => {
+            app.update(Action::AddProfile);
+        }
+        "profile-edit" => {
+            app.update(Action::EditProfile);
+        }
         "workspace" | "rename" | "review" => {
             app.update(Action::Activate);
             app.update(Action::AddToPlan);
@@ -60,7 +66,7 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
         _ => {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "snapshot must be connections, workspace, rename, or review",
+                "snapshot must be connections, profile-add, profile-edit, workspace, rename, or review",
             ));
         }
     }
@@ -156,48 +162,93 @@ fn render_connections(frame: &mut Frame<'_>, app: &mut App) {
     render_footer(
         frame,
         footer,
-        &["↑/↓ Move   Enter Connect   E Details   Q Quit"],
+        &["↑/↓ Move   Enter Connect   A Add   E Edit   Q Quit"],
         &app.status,
     );
 }
 
-fn render_profile_details(frame: &mut Frame<'_>, app: &App) {
-    let profile = &app.profiles[app.selected_profile];
+fn render_profile_editor(frame: &mut Frame<'_>, app: &App) {
+    let Some(editor) = app.profile_editor.as_ref() else {
+        return;
+    };
     let [title, body, footer] = Layout::vertical([
         Constraint::Length(3),
         Constraint::Min(8),
-        Constraint::Length(4),
+        Constraint::Length(5),
     ])
     .areas(frame.area());
 
+    let operation = if editor.is_create() { "Add" } else { "Edit" };
     frame.render_widget(
-        Paragraph::new("xfercat · Profile details")
+        Paragraph::new(format!("xfercat · {operation} profile"))
             .alignment(Alignment::Center)
             .block(Block::bordered()),
         title,
     );
-    frame.render_widget(
-        Paragraph::new(vec![
-            Line::from(format!("Label          {}", profile.label)),
-            Line::from(format!("Protocol       {}", profile.protocol)),
-            Line::from(format!("User           {}", profile.user)),
-            Line::from(format!("Host           {}", profile.host)),
-            Line::from(format!("Authentication {}", profile.authentication)),
-            Line::from(""),
-            Line::styled(
-                "PoC contract: profile editing is isolated from Connect.",
-                Style::default().fg(Color::Yellow),
-            ),
-            Line::from("Fields are intentionally read-only in this vertical slice."),
-        ])
-        .block(
-            Block::new()
-                .title("[READ-ONLY PROFILE]")
-                .borders(Borders::ALL),
+
+    let authentication = format!("← {} →", editor.authentication.label());
+    let mut fields = vec![
+        profile_field_line("Label", &editor.label, editor.field == ProfileField::Label),
+        profile_field_line("Protocol", "SFTP (fixed)", false),
+        profile_field_line("User", &editor.user, editor.field == ProfileField::User),
+        profile_field_line("Host", &editor.host, editor.field == ProfileField::Host),
+        profile_field_line(
+            "Authentication",
+            &authentication,
+            editor.field == ProfileField::Authentication,
         ),
+    ];
+    if editor.authentication == ProfileAuthentication::KeyReference {
+        fields.push(profile_field_line(
+            "Key reference",
+            &editor.key_reference,
+            editor.field == ProfileField::KeyReference,
+        ));
+    }
+    fields.extend([
+        Line::from(""),
+        Line::styled(
+            "Profile changes are saved only for this process.",
+            Style::default().fg(Color::Yellow),
+        ),
+        Line::from("Credential content and private keys are never stored here."),
+    ]);
+
+    frame.render_widget(
+        Paragraph::new(fields)
+            .wrap(Wrap { trim: false })
+            .block(Block::new().title("[PROFILE FORM]").borders(Borders::ALL)),
         body,
     );
-    render_footer(frame, footer, &["Esc Back"], &app.status);
+    render_footer(
+        frame,
+        footer,
+        &[
+            "Tab/Shift+Tab Field   Type to edit",
+            "←/→ Authentication   Enter Save   Esc Cancel",
+        ],
+        &app.status,
+    );
+}
+
+fn profile_field_line(label: &str, value: &str, active: bool) -> Line<'static> {
+    let (marker, label_style, value_style) = if active {
+        (
+            "▶ ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::UNDERLINED),
+        )
+    } else {
+        ("  ", Style::default().fg(Color::DarkGray), Style::default())
+    };
+    Line::from(vec![
+        Span::styled(format!("{marker}{label:<16}"), label_style),
+        Span::styled(value.to_owned(), value_style),
+    ])
 }
 
 fn render_workspace(frame: &mut Frame<'_>, app: &mut App) {

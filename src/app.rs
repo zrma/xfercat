@@ -6,10 +6,115 @@ use crate::domain::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Screen {
     Connections,
-    ProfileDetails,
+    ProfileEditor,
     Workspace,
     Rename,
     Review,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProfileField {
+    Label,
+    User,
+    Host,
+    Authentication,
+    KeyReference,
+}
+
+impl ProfileField {
+    pub fn next(self, authentication: ProfileAuthentication) -> Self {
+        match self {
+            Self::Label => Self::User,
+            Self::User => Self::Host,
+            Self::Host => Self::Authentication,
+            Self::Authentication if authentication == ProfileAuthentication::KeyReference => {
+                Self::KeyReference
+            }
+            Self::Authentication | Self::KeyReference => Self::Label,
+        }
+    }
+
+    pub fn previous(self, authentication: ProfileAuthentication) -> Self {
+        match self {
+            Self::Label if authentication == ProfileAuthentication::KeyReference => {
+                Self::KeyReference
+            }
+            Self::Label => Self::Authentication,
+            Self::User => Self::Label,
+            Self::Host => Self::User,
+            Self::Authentication => Self::Host,
+            Self::KeyReference => Self::Authentication,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProfileAuthentication {
+    SshAgent,
+    KeyReference,
+}
+
+impl ProfileAuthentication {
+    pub const fn toggled(self) -> Self {
+        match self {
+            Self::SshAgent => Self::KeyReference,
+            Self::KeyReference => Self::SshAgent,
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::SshAgent => "SSH Agent",
+            Self::KeyReference => "Key reference",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProfileEditor {
+    pub profile_id: Option<String>,
+    pub field: ProfileField,
+    pub label: String,
+    pub user: String,
+    pub host: String,
+    pub authentication: ProfileAuthentication,
+    pub key_reference: String,
+}
+
+impl ProfileEditor {
+    fn create() -> Self {
+        Self {
+            profile_id: None,
+            field: ProfileField::Label,
+            label: String::new(),
+            user: String::new(),
+            host: String::new(),
+            authentication: ProfileAuthentication::SshAgent,
+            key_reference: String::new(),
+        }
+    }
+
+    fn edit(profile: &ConnectionProfile) -> Self {
+        let (authentication, key_reference) = match &profile.authentication {
+            Authentication::SshAgent => (ProfileAuthentication::SshAgent, String::new()),
+            Authentication::KeyReference(reference) => {
+                (ProfileAuthentication::KeyReference, reference.clone())
+            }
+        };
+        Self {
+            profile_id: Some(profile.id.clone()),
+            field: ProfileField::Label,
+            label: profile.label.clone(),
+            user: profile.user.clone(),
+            host: profile.host.clone(),
+            authentication,
+            key_reference,
+        }
+    }
+
+    pub const fn is_create(&self) -> bool {
+        self.profile_id.is_none()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -35,7 +140,13 @@ pub enum Action {
     Down,
     Activate,
     Back,
+    AddProfile,
     EditProfile,
+    NextProfileField,
+    PreviousProfileField,
+    ToggleProfileAuthentication,
+    InputProfileChar(char),
+    BackspaceProfile,
     NextFocus,
     AddToPlan,
     RemovePlanItem,
@@ -55,6 +166,7 @@ pub struct App {
     pub focus: Focus,
     pub profiles: Vec<ConnectionProfile>,
     pub selected_profile: usize,
+    pub profile_editor: Option<ProfileEditor>,
     pub connected_profile_id: Option<String>,
     pub local_entries: Vec<BrowserEntry>,
     pub remote_entries: Vec<BrowserEntry>,
@@ -64,6 +176,7 @@ pub struct App {
     pub plan_selection: usize,
     pub rename_buffer: String,
     pub status: String,
+    next_profile_id: u64,
     next_plan_id: u64,
 }
 
@@ -91,6 +204,7 @@ impl App {
                 },
             ],
             selected_profile: 0,
+            profile_editor: None,
             connected_profile_id: None,
             local_entries: vec![
                 BrowserEntry {
@@ -132,6 +246,7 @@ impl App {
             plan_selection: 0,
             rename_buffer: String::new(),
             status: "Choose a complete profile; editing is a separate action.".into(),
+            next_profile_id: 1,
             next_plan_id: 1,
         }
     }
@@ -143,12 +258,7 @@ impl App {
 
         match self.screen {
             Screen::Connections => self.update_connections(action),
-            Screen::ProfileDetails => {
-                if action == Action::Back {
-                    self.screen = Screen::Connections;
-                    self.status = "Profile unchanged.".into();
-                }
-            }
+            Screen::ProfileEditor => self.update_profile_editor(action),
             Screen::Workspace => self.update_workspace(action),
             Screen::Rename => self.update_rename(action),
             Screen::Review => {
@@ -171,17 +281,111 @@ impl App {
                 self.selected_profile = next_index(self.selected_profile, self.profiles.len());
             }
             Action::Activate => {
-                let profile = &self.profiles[self.selected_profile];
-                self.connected_profile_id = Some(profile.id.clone());
-                self.screen = Screen::Workspace;
-                self.status = format!("Connected to synthetic profile {}.", profile.label);
+                if let Some(profile) = self.profiles.get(self.selected_profile) {
+                    self.connected_profile_id = Some(profile.id.clone());
+                    self.screen = Screen::Workspace;
+                    self.status = format!("Connected to synthetic profile {}.", profile.label);
+                }
+            }
+            Action::AddProfile => {
+                self.profile_editor = Some(ProfileEditor::create());
+                self.screen = Screen::ProfileEditor;
+                self.status = "Create a process-lifetime synthetic profile.".into();
             }
             Action::EditProfile => {
-                self.screen = Screen::ProfileDetails;
-                self.status = "Profile details are isolated from connection selection.".into();
+                if let Some(profile) = self.profiles.get(self.selected_profile) {
+                    self.profile_editor = Some(ProfileEditor::edit(profile));
+                    self.screen = Screen::ProfileEditor;
+                    self.status = "Edit is isolated from the Connect action.".into();
+                }
             }
             _ => {}
         }
+    }
+
+    fn update_profile_editor(&mut self, action: Action) {
+        let Some(editor) = self.profile_editor.as_mut() else {
+            self.screen = Screen::Connections;
+            self.status = "Profile editor state was unavailable.".into();
+            return;
+        };
+
+        match action {
+            Action::NextProfileField => {
+                editor.field = editor.field.next(editor.authentication);
+            }
+            Action::PreviousProfileField => {
+                editor.field = editor.field.previous(editor.authentication);
+            }
+            Action::ToggleProfileAuthentication if editor.field == ProfileField::Authentication => {
+                editor.authentication = editor.authentication.toggled();
+            }
+            Action::InputProfileChar(character) if !character.is_control() => match editor.field {
+                ProfileField::Label => editor.label.push(character),
+                ProfileField::User => editor.user.push(character),
+                ProfileField::Host => editor.host.push(character),
+                ProfileField::Authentication => {}
+                ProfileField::KeyReference => editor.key_reference.push(character),
+            },
+            Action::BackspaceProfile => match editor.field {
+                ProfileField::Label => {
+                    editor.label.pop();
+                }
+                ProfileField::User => {
+                    editor.user.pop();
+                }
+                ProfileField::Host => {
+                    editor.host.pop();
+                }
+                ProfileField::Authentication => {}
+                ProfileField::KeyReference => {
+                    editor.key_reference.pop();
+                }
+            },
+            Action::Activate => self.save_profile(),
+            Action::Back => {
+                self.profile_editor = None;
+                self.screen = Screen::Connections;
+                self.status = "Profile edit cancelled; catalog unchanged.".into();
+            }
+            _ => {}
+        }
+    }
+
+    fn save_profile(&mut self) {
+        let Some(editor) = self.profile_editor.clone() else {
+            return;
+        };
+        let profile = match profile_from_editor(&editor, &self.profiles, self.next_profile_id) {
+            Ok(profile) => profile,
+            Err(message) => {
+                self.status = message.into();
+                return;
+            }
+        };
+        let label = profile.label.clone();
+
+        if let Some(profile_id) = editor.profile_id {
+            let Some(index) = self
+                .profiles
+                .iter()
+                .position(|existing| existing.id == profile_id)
+            else {
+                self.status = "Profile being edited no longer exists.".into();
+                return;
+            };
+            self.profiles[index] = profile;
+            self.selected_profile = index;
+            self.status = format!("Updated profile {label}; press Enter to connect.");
+        } else {
+            self.profiles.push(profile);
+            self.selected_profile = self.profiles.len() - 1;
+            self.next_profile_id += 1;
+            self.status = format!("Added profile {label}; press Enter to connect.");
+        }
+
+        self.profile_editor = None;
+        self.screen = Screen::Connections;
     }
 
     fn update_workspace(&mut self, action: Action) {
@@ -376,6 +580,67 @@ impl App {
     }
 }
 
+fn profile_from_editor(
+    editor: &ProfileEditor,
+    profiles: &[ConnectionProfile],
+    next_profile_id: u64,
+) -> Result<ConnectionProfile, &'static str> {
+    let label = editor.label.trim();
+    let user = editor.user.trim();
+    let host = editor.host.trim();
+
+    if label.is_empty() {
+        return Err("Profile label cannot be empty.");
+    }
+    if label.chars().any(char::is_control) {
+        return Err("Profile label cannot contain control characters.");
+    }
+    if profiles.iter().any(|profile| {
+        profile.id != editor.profile_id.as_deref().unwrap_or_default()
+            && profile.label.eq_ignore_ascii_case(label)
+    }) {
+        return Err("Profile label must be unique.");
+    }
+    if user.is_empty() {
+        return Err("User cannot be empty.");
+    }
+    if user.chars().any(char::is_whitespace) {
+        return Err("User cannot contain whitespace.");
+    }
+    if host.is_empty() {
+        return Err("Host cannot be empty.");
+    }
+    if host.chars().any(char::is_whitespace) {
+        return Err("Host cannot contain whitespace.");
+    }
+
+    let authentication = match editor.authentication {
+        ProfileAuthentication::SshAgent => Authentication::SshAgent,
+        ProfileAuthentication::KeyReference => {
+            let reference = editor.key_reference.trim();
+            if reference.is_empty() {
+                return Err("Key reference cannot be empty.");
+            }
+            if reference.chars().any(char::is_whitespace) {
+                return Err("Key reference cannot contain whitespace.");
+            }
+            Authentication::KeyReference(reference.into())
+        }
+    };
+
+    Ok(ConnectionProfile {
+        id: editor
+            .profile_id
+            .clone()
+            .unwrap_or_else(|| format!("custom-{next_profile_id}")),
+        label: label.into(),
+        protocol: Protocol::Sftp,
+        user: user.into(),
+        host: host.into(),
+        authentication,
+    })
+}
+
 fn destination_file_name(path: &str) -> Option<&str> {
     path.rsplit_once('/')
         .map(|(_, file_name)| file_name)
@@ -427,18 +692,19 @@ fn previous_index(current: usize, length: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{Action, App, Focus, Screen};
-    use crate::domain::ConflictPolicy;
+    use super::{Action, App, Focus, ProfileField, Screen};
+    use crate::domain::{Authentication, ConflictPolicy};
 
     #[test]
-    fn selecting_and_opening_details_never_mutates_profiles() {
+    fn cancelled_profile_edit_is_isolated_from_connect() {
         let mut app = App::demo();
         let original = app.profiles.clone();
 
         app.update(Action::Down);
         app.update(Action::EditProfile);
+        app.update(Action::InputProfileChar('x'));
 
-        assert_eq!(app.screen, Screen::ProfileDetails);
+        assert_eq!(app.screen, Screen::ProfileEditor);
         assert_eq!(app.profiles, original);
 
         app.update(Action::Back);
@@ -446,6 +712,153 @@ mod tests {
 
         assert_eq!(app.profiles, original);
         assert_eq!(app.connected_profile_id.as_deref(), Some("archive"));
+    }
+
+    #[test]
+    fn creating_profile_adds_a_unique_stable_catalog_item() {
+        let mut app = App::demo();
+
+        app.update(Action::AddProfile);
+        input_profile_text(&mut app, "lab box");
+        app.update(Action::NextProfileField);
+        input_profile_text(&mut app, "builder");
+        app.update(Action::NextProfileField);
+        input_profile_text(&mut app, "lab.example");
+        app.update(Action::NextProfileField);
+        app.update(Action::ToggleProfileAuthentication);
+        app.update(Action::NextProfileField);
+        input_profile_text(&mut app, "lab-key");
+        app.update(Action::Activate);
+
+        assert_eq!(app.screen, Screen::Connections);
+        assert_eq!(app.selected_profile, 2);
+        assert_eq!(app.profiles.len(), 3);
+        assert_eq!(app.profiles[2].id, "custom-1");
+        assert_eq!(app.profiles[2].label, "lab box");
+        assert_eq!(app.profiles[2].user, "builder");
+        assert_eq!(app.profiles[2].host, "lab.example");
+        assert_eq!(
+            app.profiles[2].authentication,
+            Authentication::KeyReference("lab-key".into())
+        );
+    }
+
+    #[test]
+    fn editing_profile_preserves_identity_and_other_catalog_items() {
+        let mut app = App::demo();
+        let untouched = app.profiles[0].clone();
+
+        app.update(Action::Down);
+        let stable_id = app.profiles[1].id.clone();
+        app.update(Action::EditProfile);
+        clear_profile_field(&mut app);
+        input_profile_text(&mut app, "cold archive");
+        app.update(Action::NextProfileField);
+        clear_profile_field(&mut app);
+        input_profile_text(&mut app, "backup");
+        app.update(Action::Activate);
+
+        assert_eq!(app.screen, Screen::Connections);
+        assert_eq!(app.profiles[0], untouched);
+        assert_eq!(app.profiles[1].id, stable_id);
+        assert_eq!(app.profiles[1].label, "cold archive");
+        assert_eq!(app.profiles[1].user, "backup");
+        assert_eq!(
+            app.profiles[1].authentication,
+            Authentication::KeyReference("archive-key".into())
+        );
+    }
+
+    #[test]
+    fn invalid_or_duplicate_profile_never_mutates_catalog() {
+        let mut app = App::demo();
+        let original = app.profiles.clone();
+
+        app.update(Action::AddProfile);
+        input_profile_text(&mut app, "DEV-BOX");
+        app.update(Action::Activate);
+
+        assert_eq!(app.screen, Screen::ProfileEditor);
+        assert_eq!(app.profiles, original);
+        assert_eq!(app.status, "Profile label must be unique.");
+
+        clear_profile_field(&mut app);
+        input_profile_text(&mut app, "new-box");
+        app.update(Action::NextProfileField);
+        input_profile_text(&mut app, "builder");
+        app.update(Action::NextProfileField);
+        input_profile_text(&mut app, "new.example");
+        app.update(Action::NextProfileField);
+        app.update(Action::ToggleProfileAuthentication);
+        app.update(Action::Activate);
+
+        assert_eq!(app.screen, Screen::ProfileEditor);
+        assert_eq!(app.profiles, original);
+        assert_eq!(app.status, "Key reference cannot be empty.");
+
+        app.update(Action::Back);
+        assert_eq!(app.screen, Screen::Connections);
+        assert_eq!(app.profiles, original);
+    }
+
+    #[test]
+    fn authentication_changes_only_from_its_selected_field() {
+        let mut app = App::demo();
+        app.update(Action::AddProfile);
+
+        app.update(Action::ToggleProfileAuthentication);
+        assert_eq!(
+            app.profile_editor
+                .as_ref()
+                .expect("profile editor is active")
+                .authentication,
+            super::ProfileAuthentication::SshAgent
+        );
+
+        app.update(Action::NextProfileField);
+        app.update(Action::NextProfileField);
+        app.update(Action::NextProfileField);
+        assert_eq!(
+            app.profile_editor
+                .as_ref()
+                .expect("profile editor is active")
+                .field,
+            ProfileField::Authentication
+        );
+
+        app.update(Action::InputProfileChar('x'));
+        assert_eq!(
+            app.profile_editor
+                .as_ref()
+                .expect("profile editor is active")
+                .authentication,
+            super::ProfileAuthentication::SshAgent
+        );
+        app.update(Action::ToggleProfileAuthentication);
+        assert_eq!(
+            app.profile_editor
+                .as_ref()
+                .expect("profile editor is active")
+                .authentication,
+            super::ProfileAuthentication::KeyReference
+        );
+    }
+
+    #[test]
+    fn editing_connected_profile_does_not_rewrite_staged_endpoints() {
+        let mut app = App::demo();
+        app.update(Action::Activate);
+        app.update(Action::AddToPlan);
+        let staged = app.plan[0].clone();
+
+        app.update(Action::Back);
+        app.update(Action::EditProfile);
+        clear_profile_field(&mut app);
+        input_profile_text(&mut app, "renamed dev");
+        app.update(Action::Activate);
+
+        assert_eq!(app.profiles[0].id, "dev-box");
+        assert_eq!(app.plan[0], staged);
     }
 
     #[test]
@@ -580,6 +993,46 @@ mod tests {
     fn clear_rename_buffer(app: &mut App) {
         while !app.rename_buffer.is_empty() {
             app.update(Action::BackspaceRename);
+        }
+    }
+
+    fn input_profile_text(app: &mut App, value: &str) {
+        for character in value.chars() {
+            app.update(Action::InputProfileChar(character));
+        }
+    }
+
+    fn clear_profile_field(app: &mut App) {
+        let field = app
+            .profile_editor
+            .as_ref()
+            .map(|editor| editor.field)
+            .expect("profile editor is active");
+        assert!(matches!(
+            field,
+            ProfileField::Label
+                | ProfileField::User
+                | ProfileField::Host
+                | ProfileField::KeyReference
+        ));
+        loop {
+            let is_empty = {
+                let editor = app
+                    .profile_editor
+                    .as_ref()
+                    .expect("profile editor is active");
+                match field {
+                    ProfileField::Label => editor.label.is_empty(),
+                    ProfileField::User => editor.user.is_empty(),
+                    ProfileField::Host => editor.host.is_empty(),
+                    ProfileField::KeyReference => editor.key_reference.is_empty(),
+                    ProfileField::Authentication => true,
+                }
+            };
+            if is_empty {
+                break;
+            }
+            app.update(Action::BackspaceProfile);
         }
     }
 }

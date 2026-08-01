@@ -12,6 +12,8 @@
 ## P1 Local Transfer Plan
 
 - [x] read-only connection profile picker with synthetic profiles
+- [x] process-lifetime synthetic connection profile add/edit
+- [ ] profile delete with active-connection and staged-plan reference handling
 - [x] synthetic local/remote dual-pane browser fixture
 - [x] Waybill destination rename and stable-ID reorder
 - [x] Waybill add, conflict-policy edit and remove

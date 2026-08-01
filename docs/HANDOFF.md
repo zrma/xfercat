@@ -3,7 +3,7 @@
 ## Start Here
 
 `xfercat`은 connection picker와 preview-first `TransferPlan`을 핵심으로 하는 파일 전송
-도구다. Rust/Ratatui synthetic PoC가 핵심 interaction을 실행 가능하게 검증한다.
+도구다. Rust/Ratatui PoC가 actual local/remote browser와 핵심 interaction을 검증한다.
 
 ## Current State
 
@@ -20,10 +20,14 @@
   `TransportRequest` 및 raw diagnostic text가 없는 typed result boundary가 준비됐다.
 - Review의 명시적 action이 representative synthetic executor를 실행해 item별 succeeded,
   failed, skipped와 cancelled result를 보존한다. terminal item은 암묵적으로 재실행하지 않는다.
-- actual transport는 system OpenSSH, strict known-host verification, batch authentication와
-  `openssh-sftp-client`를 사용하기로 결정했다. 구현은 아직 연결되지 않았다.
+- actual remote session은 system OpenSSH, strict known-host verification, batch authentication와
+  `openssh-sftp-client`를 사용한다. imported alias는 effective user config를 system `ssh`에
+  위임하고 manual profile은 agent 또는 key-reference path를 사용한다.
 - runtime LOCAL pane은 current working directory의 canonical actual entries를 읽고 Enter와
   Backspace로 이동한다. symlink, non-Unicode와 unreadable entry는 staging에서 제외한다.
+- runtime REMOTE pane은 canonical SFTP home과 child/parent directory를 실제로 읽는다. remote
+  symlink, special file, non-Unicode와 unsafe name도 staging에서 제외하며 raw SSH diagnostic은
+  stable failure status로 변환한다.
 - `--snapshot`과 Ratatui `TestBackend`가 110×32 및 80×24 representative state를 검증한다.
 - canonical validation은 `scripts/check.sh`가 소유한다.
 - public remote가 구성됐다. license와 최종 GUI/TUI 제품 선택은
@@ -35,8 +39,8 @@
 
 권장 순서는 다음과 같다.
 
-1. strict OpenSSH/SFTP session과 remote browser를 연결한다.
-2. temporary sibling, verified close와 rename을 사용하는 upload/download execution을 연결한다.
+1. temporary sibling, verified close와 rename을 사용하는 upload/download execution을 연결한다.
+2. stale destination, conflict policy와 partial failure를 격리된 SFTP fixture로 검증한다.
 
 ## Boundaries
 

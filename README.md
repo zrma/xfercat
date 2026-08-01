@@ -5,9 +5,9 @@ Plan first. Transfer once.
 `xfercat`은 저장된 연결을 실수 없이 선택하고, 로컬과 원격 사이의 파일 전송을
 실행 전에 하나의 명시적인 계획으로 검토하는 파일 전송 도구다.
 
-현재 상태는 실행 가능한 synthetic TUI PoC다. item-level success/failure/skip/cancellation
-state는 synthetic executor로 확인할 수 있지만 실제 filesystem mutation과 network file
-transfer는 아직 구현되지 않았다.
+현재 상태는 actual local/remote browser까지 연결된 TUI PoC다. system OpenSSH의 strict
+host verification과 SFTP로 remote filesystem을 read-only 탐색할 수 있다. Review의
+item-level result는 아직 synthetic이며 실제 파일 전송은 아직 구현되지 않았다.
 
 ## Product Direction
 
@@ -23,6 +23,7 @@ transfer는 아직 구현되지 않았다.
 
 ```sh
 cargo run
+cargo run -- --ssh-config <path>
 cargo run -- --snapshot connections
 cargo run -- --snapshot openssh
 cargo run -- --snapshot openssh-empty
@@ -36,9 +37,10 @@ cargo run -- --snapshot review
 일반 실행은 user OpenSSH config와 global `Include`에서 concrete `Host` alias를 자동으로
 가져온다. wildcard, negated pattern과 conditional include는 picker entry로 만들지 않는다.
 imported profile은 read-only alias reference이며 host, user, key와 effective config를 복제하거나
-해석하지 않는다. runtime LOCAL pane은 실제 current directory를 read-only로 탐색한다. REMOTE
-pane과 전송 결과는 아직 synthetic이고 Review의 실행 action도 typed state transition만
-검증하며 실제 I/O를 수행하지 않는다.
+해석하지 않는다. profile을 선택하면 system OpenSSH가 strict known-host와 batch mode로 실제
+SFTP session을 열며, runtime LOCAL과 REMOTE pane은 실제 directory를 read-only로 탐색한다.
+`--ssh-config`는 별도 OpenSSH config를 discovery와 connection 양쪽에 동일하게 적용한다.
+Review의 실행 action은 아직 synthetic state transition만 검증하며 실제 file mutation은 하지 않는다.
 
 수동으로 추가·편집·삭제한 profile은 현재 process에서만 유지되며 앱을 재시작하면
 OpenSSH import와 빈 manual catalog에서 다시 시작한다. staged Waybill item이 참조하는
@@ -52,7 +54,7 @@ Connection controls:
 - `D`: manual profile 삭제; imported profile과 staged-reference profile은 안전하게 차단
 - `Tab` / `Shift+Tab`: profile form field 이동
 - `Left` / `Right`: SSH Agent와 key reference 전환
-- `Enter`: profile 저장 또는 selected profile을 synthetic workspace에 선택
+- `Enter`: profile 저장 또는 selected profile에 strict SFTP connection
 - `Esc`: form 취소
 
 Workspace controls:

@@ -4,6 +4,7 @@ use crate::domain::{
 };
 use crate::executor;
 use crate::localfs::LocalDirectory;
+use crate::sftp::RemoteDirectory;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Screen {
@@ -345,6 +346,38 @@ impl App {
             .map(|entry| entry.path.clone())
     }
 
+    pub fn enter_remote_workspace(&mut self, profile_id: &str, directory: RemoteDirectory) {
+        let status = directory.status();
+        self.connected_profile_id = Some(profile_id.to_owned());
+        self.remote_directory = directory.path;
+        self.remote_entries = directory.entries;
+        self.remote_selection = 0;
+        self.focus = Focus::Local;
+        self.screen = Screen::Workspace;
+        self.status = status;
+    }
+
+    pub fn replace_remote_directory(&mut self, directory: RemoteDirectory) {
+        let status = directory.status();
+        self.remote_directory = directory.path;
+        self.remote_entries = directory.entries;
+        self.remote_selection = 0;
+        self.status = status;
+    }
+
+    pub fn remote_navigation_target(&self, parent: bool) -> Option<String> {
+        if self.focus != Focus::Remote {
+            return None;
+        }
+        if parent {
+            return remote_parent(&self.remote_directory);
+        }
+        self.remote_entries
+            .get(self.remote_selection)
+            .filter(|entry| entry.kind == EntryKind::Directory)
+            .map(|entry| entry.path.clone())
+    }
+
     pub fn update(&mut self, action: Action) -> bool {
         if action == Action::Quit {
             return true;
@@ -393,7 +426,7 @@ impl App {
             Action::AddProfile => {
                 self.profile_editor = Some(ProfileEditor::create());
                 self.screen = Screen::ProfileEditor;
-                self.status = "Create a process-lifetime synthetic profile.".into();
+                self.status = "Create a process-lifetime manual profile.".into();
             }
             Action::EditProfile => {
                 if let Some(profile) = self.profiles.get(self.selected_profile) {
@@ -648,7 +681,10 @@ impl App {
 
         let item = match self.focus {
             Focus::Local => {
-                let entry = &self.local_entries[self.local_selection];
+                let Some(entry) = self.local_entries.get(self.local_selection) else {
+                    self.status = "No local file selected.".into();
+                    return;
+                };
                 if entry.kind == EntryKind::Directory {
                     self.status = "Directory staging is deferred in this PoC.".into();
                     return;
@@ -669,7 +705,10 @@ impl App {
                 }
             }
             Focus::Remote => {
-                let entry = &self.remote_entries[self.remote_selection];
+                let Some(entry) = self.remote_entries.get(self.remote_selection) else {
+                    self.status = "No remote file selected.".into();
+                    return;
+                };
                 if entry.kind == EntryKind::Directory {
                     self.status = "Directory staging is deferred in this PoC.".into();
                     return;
@@ -760,6 +799,15 @@ fn join_logical_path(directory: &str, name: &str) -> String {
     } else {
         format!("{}/{name}", directory.trim_end_matches('/'))
     }
+}
+
+fn remote_parent(path: &str) -> Option<String> {
+    let trimmed = path.trim_end_matches('/');
+    if trimmed.is_empty() {
+        return None;
+    }
+    let (parent, _) = trimmed.rsplit_once('/')?;
+    Some(if parent.is_empty() { "/" } else { parent }.to_owned())
 }
 
 fn profile_from_editor(
@@ -885,6 +933,7 @@ mod tests {
         Authentication, BrowserEntry, ConflictPolicy, ConnectionProfile, EntryKind, TransferState,
     };
     use crate::localfs::LocalDirectory;
+    use crate::sftp::RemoteDirectory;
 
     #[test]
     fn cancelled_profile_edit_is_isolated_from_connect() {
@@ -1258,6 +1307,70 @@ mod tests {
         assert!(app.status.contains("1 unsafe or unreadable"));
         app.local_selection = 1;
         assert!(app.local_navigation_target(false).is_none());
+    }
+
+    #[test]
+    fn entering_live_workspace_replaces_remote_fixture_and_exposes_navigation_targets() {
+        let mut app = App::runtime(
+            vec![ConnectionProfile::open_ssh("fixture-host")],
+            "Fixture catalog loaded.",
+        );
+
+        app.enter_remote_workspace(
+            "openssh:fixture-host",
+            RemoteDirectory {
+                path: "/remote/home".into(),
+                entries: vec![BrowserEntry {
+                    name: "packages".into(),
+                    path: "/remote/home/packages".into(),
+                    kind: EntryKind::Directory,
+                    size: None,
+                }],
+                skipped_entries: 1,
+            },
+        );
+
+        assert_eq!(app.screen, Screen::Workspace);
+        assert_eq!(app.focus, Focus::Local);
+        assert_eq!(
+            app.connected_profile_id.as_deref(),
+            Some("openssh:fixture-host")
+        );
+        assert_eq!(app.remote_directory, "/remote/home");
+        assert!(app.status.contains("1 unsafe or unreadable"));
+
+        app.focus = Focus::Remote;
+        assert_eq!(
+            app.remote_navigation_target(false).as_deref(),
+            Some("/remote/home/packages")
+        );
+        assert_eq!(
+            app.remote_navigation_target(true).as_deref(),
+            Some("/remote")
+        );
+        app.replace_remote_directory(RemoteDirectory {
+            path: "/".into(),
+            entries: Vec::new(),
+            skipped_entries: 0,
+        });
+        assert!(app.remote_navigation_target(true).is_none());
+    }
+
+    #[test]
+    fn empty_browser_selection_cannot_be_staged() {
+        let mut app = App::demo();
+        app.update(Action::Activate);
+        app.local_entries.clear();
+
+        app.update(Action::AddToPlan);
+
+        assert!(app.plan.is_empty());
+        assert_eq!(app.status, "No local file selected.");
+        app.focus = Focus::Remote;
+        app.remote_entries.clear();
+        app.update(Action::AddToPlan);
+        assert!(app.plan.is_empty());
+        assert_eq!(app.status, "No remote file selected.");
     }
 
     #[test]

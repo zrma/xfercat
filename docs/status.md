@@ -4,7 +4,7 @@ Updated: 2026-08-01
 
 ## Verdict
 
-The synthetic product-foundation PoC is executable; real file transfer is not implemented.
+The PoC has actual local and SFTP remote browsers; real file transfer is not implemented.
 
 ## Implemented
 
@@ -28,6 +28,9 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - explicit Review execution action with partial result preservation and terminal result rendering
 - accepted system OpenSSH/SFTP transport, strict host verification and temporary-write contract
 - actual canonical local filesystem listing, safe entry filtering and directory navigation
+- strict system OpenSSH session with batch authentication and sanitized typed failures
+- actual canonical SFTP remote listing, safe entry filtering and child/parent navigation
+- optional explicit OpenSSH config shared by discovery and connection
 - current-pane exact local/remote path staging
 - profile-selection, exact-endpoint and Waybill interaction tests
 - deterministic 110×32 and compact 80×24 terminal snapshots
@@ -36,10 +39,7 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 
 - persistent connection catalog
 - effective OpenSSH config, conditional `Match` and authentication resolution
-- real connection establishment
-- filesystem-backed remote browser
 - transfer execution
-- network transport
 - packaging, release or updater
 
 ## Active Work
@@ -58,5 +58,5 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - the TUI is a PoC adapter, not a final GUI/TUI product commitment.
 - manual catalog changes remain process-local and reset when the process exits.
 - wildcard/conditional OpenSSH rules affect future connection semantics but do not become picker rows.
-- transport library choice can affect OpenSSH compatibility, host verification and credential handling.
+- cancelling an already-sent SFTP mutation cannot guarantee that the remote operation stops.
 - plan persistence needs a privacy and crash-recovery contract before durable storage is added.

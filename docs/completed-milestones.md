@@ -106,3 +106,15 @@ decision 0003 and `scripts/check.sh`.
 
 Evidence: three local filesystem tests, two application navigation/staging regressions, full and
 compact snapshots, actual read-only PTY navigation smoke and `scripts/check.sh`.
+
+## 2026-08-01 — P2 SFTP Remote Browser
+
+- connected imported aliases and manual agent/key-reference profiles through system OpenSSH
+- enforced strict known-host verification, batch authentication and a bounded connection timeout
+- replaced runtime synthetic remote entries with canonical SFTP directory entries
+- excluded symlink, non-Unicode, control-character, special and unreadable remote entries
+- added child/parent remote navigation, graceful close and sanitized typed failure status
+- added an optional explicit config path shared by discovery and system OpenSSH connection
+
+Evidence: five adapter unit tests, two application regressions, an ephemeral localhost sshd/SFTP
+fixture, actual PTY connect/navigation/close smoke and `scripts/check.sh`.

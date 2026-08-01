@@ -3,7 +3,7 @@
 ## Status
 
 The PoC uses a Rust 2024 core with a Ratatui/Crossterm validation shell. System OpenSSH with a
-typed SFTP client is selected for the first Unix transport but is not implemented yet. Runtime and
+typed SFTP client implements the first Unix connection and read-only remote browser. Runtime and
 transport rationale are recorded in `docs/decisions/0001-poc-runtime.md` and
 `docs/decisions/0003-openssh-sftp-transport.md`.
 
@@ -70,6 +70,15 @@ runtime local browser는 current working directory를 canonicalize하고 directo
 follow 없이 제외한다. navigation은 read-only이고 staged item은 browser가 읽은 exact canonical
 path, file kind와 size를 freeze한다.
 
+### SFTP Adapter
+
+runtime connection은 imported alias 또는 validated manual host를 system OpenSSH에 전달한다.
+OpenSSH가 user config, agent, identity와 jump policy를 평가하며 adapter는 strict known-host
+verification, batch authentication와 bounded timeout을 강제한다. SFTP browser는 remote path를
+canonicalize하고 directory와 regular file만 노출한다. symlink, special file, non-Unicode,
+control-character와 unreadable entry는 제외하고 raw SSH/SFTP diagnostic은 domain이나 UI에
+전달하지 않는다. session은 Workspace를 나가거나 앱을 종료할 때 graceful close한다.
+
 ## Safety Invariants
 
 - 연결 전에 exact profile, endpoint와 host-verification 상태를 보여준다.
@@ -83,7 +92,7 @@ path, file kind와 size를 freeze한다.
 
 ## Initial Vertical Slice
 
-첫 slice는 실제 private host 없이 synthetic local/remote endpoint를 사용한다. connection
+첫 product-foundation slice는 실제 private host 없이 synthetic local/remote endpoint를 사용했다. connection
 picker의 OpenSSH alias import/refresh, profile 선택과 process-lifetime manual add/edit/delete,
 두 pane 탐색, Waybill item add/edit/remove와 dry-run execution preview를 end-to-end로 검증한다.
 profile edit은 stable identity와 staged endpoint를 바꾸지 않고, delete는 staged reference를
@@ -91,11 +100,11 @@ non-cascading으로 차단한다. representative synthetic executor는 staged it
 terminal state로 전이하고 partial result를 보존하지만 filesystem과 network를 호출하지 않는다.
 `src/domain.rs`가 transfer types,
 `src/app.rs`가 interaction state, `src/ui.rs`가 Ratatui rendering과 deterministic snapshot을
-소유한다. network transport는 후속 slice에서 같은 domain contract에 연결한다.
+소유한다. 현재 runtime은 `src/localfs.rs`와 `src/sftp.rs`의 actual browser adapter를 사용하고,
+file mutation은 후속 execution slice에서 같은 domain contract에 연결한다.
 
 ## Deferred Decisions
 
 - final TUI or GUI product interface
-- async runtime and cancellation primitive
 - effective OpenSSH config, conditional `Match` and host-verification resolution
 - plan persistence format and migration policy

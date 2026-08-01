@@ -63,3 +63,13 @@ regression, redacted local-config PTY smoke with terminal restoration and `scrip
 
 Evidence: four focused delete tests, 110×32 and 80×24 shortcut snapshots, delete/re-add/connect
 PTY smoke and `scripts/check.sh`.
+
+## 2026-08-01 — Typed Transport Boundary
+
+- preserved staged entry kind and expected-size metadata independently from browser state
+- froze exact item identity, endpoints, direction and conflict policy into `TransportRequest`
+- rejected relative, traversal, control-character and direction/endpoint-role mismatches
+- defined succeeded, skipped, failed and cancelled results without raw diagnostic payloads
+- kept filesystem, subprocess, network, credential and transport-library choices out of scope
+
+Evidence: four focused transport tests, staged metadata app regression and `scripts/check.sh`.

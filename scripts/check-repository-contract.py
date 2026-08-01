@@ -29,6 +29,7 @@ REQUIRED_FILES = (
     "src/lib.rs",
     "src/main.rs",
     "src/openssh.rs",
+    "src/transport.rs",
     "src/ui.rs",
     "tests/interaction.rs",
     "scripts/check.sh",

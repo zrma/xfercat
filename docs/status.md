@@ -22,6 +22,8 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - startup import, `I` refresh, read-only provenance and empty/manual fallback states
 - destination-leaf rename with invalid-name rejection
 - stable-ID Waybill reorder reflected in Review
+- immutable typed transport request conversion with endpoint/path validation
+- typed transport success, skip, failure and cancellation result contract without raw diagnostics
 - profile-selection, exact-endpoint and Waybill interaction tests
 - deterministic 110×32 and compact 80×24 terminal snapshots
 

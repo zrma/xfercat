@@ -56,6 +56,10 @@ plan은 browser focus와 분리되고 item edit, remove, reorder, subset executi
 
 transport는 structured request와 typed result를 받는다. shell command 문자열을 조합하지
 않고 credential material과 raw diagnostic output를 domain이나 UI log로 누출하지 않는다.
+`TransportRequest` conversion은 source/destination logical path와 upload/download endpoint
+role을 검증하고 item ID, entry kind, expected size와 conflict policy를 immutable snapshot으로
+보존한다. `TransportResult`는 succeeded, skipped, failed 또는 cancelled outcome만 노출하며
+failure는 stable category와 retryability만 domain에 전달한다.
 
 ## Safety Invariants
 

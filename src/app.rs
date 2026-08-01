@@ -626,6 +626,8 @@ impl App {
                         format!("/srv/xfercat/releases/{}", entry.name),
                     ),
                     direction: TransferDirection::Upload,
+                    entry_kind: entry.kind,
+                    expected_size: entry.size,
                     conflict_policy: ConflictPolicy::Ask,
                     state: TransferState::Staged,
                 }
@@ -645,6 +647,8 @@ impl App {
                     ),
                     destination: Endpoint::local(format!("/workspace/incoming/{}", entry.name)),
                     direction: TransferDirection::Download,
+                    entry_kind: entry.kind,
+                    expected_size: entry.size,
                     conflict_policy: ConflictPolicy::Ask,
                     state: TransferState::Staged,
                 }
@@ -818,7 +822,7 @@ fn previous_index(current: usize, length: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::{Action, App, Focus, ProfileField, Screen};
-    use crate::domain::{Authentication, ConflictPolicy, ConnectionProfile};
+    use crate::domain::{Authentication, ConflictPolicy, ConnectionProfile, EntryKind};
 
     #[test]
     fn cancelled_profile_edit_is_isolated_from_connect() {
@@ -1151,6 +1155,8 @@ mod tests {
 
         assert_eq!(staged.source.path, "/workspace/outgoing/app.tar.gz");
         assert_eq!(staged.destination.path, "/srv/xfercat/releases/app.tar.gz");
+        assert_eq!(staged.entry_kind, EntryKind::File);
+        assert_eq!(staged.expected_size, Some(438 * 1024 * 1024));
         assert_eq!(app.plan[0], staged);
     }
 

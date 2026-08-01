@@ -218,6 +218,8 @@ pub struct TransferPlanItem {
     pub source: Endpoint,
     pub destination: Endpoint,
     pub direction: TransferDirection,
+    pub entry_kind: EntryKind,
+    pub expected_size: Option<u64>,
     pub conflict_policy: ConflictPolicy,
     pub state: TransferState,
 }

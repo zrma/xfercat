@@ -1,4 +1,7 @@
-use crate::domain::{ConflictPolicy, Endpoint, EntryKind, TransferDirection, TransferPlanItem};
+use crate::domain::{
+    ConflictPolicy, DestinationExpectation, Endpoint, EntryKind, TransferDirection,
+    TransferPlanItem,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TransportRequest {
@@ -8,6 +11,7 @@ pub struct TransportRequest {
     pub direction: TransferDirection,
     pub entry_kind: EntryKind,
     pub expected_size: Option<u64>,
+    pub destination_expectation: DestinationExpectation,
     pub conflict_policy: ConflictPolicy,
 }
 
@@ -39,6 +43,7 @@ impl TryFrom<&TransferPlanItem> for TransportRequest {
             direction: item.direction,
             entry_kind: item.entry_kind,
             expected_size: item.expected_size,
+            destination_expectation: item.destination_expectation,
             conflict_policy: item.conflict_policy,
         })
     }
@@ -91,10 +96,13 @@ pub enum TransportFailureKind {
     Authentication,
     HostVerification,
     SourceNotFound,
+    StaleSource,
     PermissionDenied,
     DestinationConflict,
     StaleDestination,
     ConnectionLost,
+    LocalFilesystem,
+    RemoteFilesystem,
     Unsupported,
 }
 
@@ -105,7 +113,8 @@ mod tests {
         TransportResult, TransportSkipReason,
     };
     use crate::domain::{
-        ConflictPolicy, Endpoint, EntryKind, TransferDirection, TransferPlanItem, TransferState,
+        ConflictPolicy, DestinationExpectation, Endpoint, EntryKind, TransferDirection,
+        TransferPlanItem, TransferState,
     };
 
     #[test]
@@ -121,6 +130,10 @@ mod tests {
         assert_eq!(upload_request.destination, upload.destination);
         assert_eq!(upload_request.entry_kind, EntryKind::File);
         assert_eq!(upload_request.expected_size, Some(4096));
+        assert_eq!(
+            upload_request.destination_expectation,
+            DestinationExpectation::Missing
+        );
         assert_eq!(upload_request.conflict_policy, ConflictPolicy::Rename);
         assert_eq!(download_request.direction, TransferDirection::Download);
         assert!(download_request.source.profile_id.is_some());
@@ -208,6 +221,7 @@ mod tests {
             direction,
             entry_kind: EntryKind::File,
             expected_size: Some(4096),
+            destination_expectation: DestinationExpectation::Missing,
             conflict_policy: ConflictPolicy::Rename,
             state: TransferState::Staged,
         }

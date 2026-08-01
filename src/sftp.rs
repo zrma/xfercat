@@ -203,6 +203,10 @@ impl SftpSession {
             .await
             .map_err(|_| failure(SftpFailureKind::Connection, true))
     }
+
+    pub(crate) fn client(&self) -> &Sftp {
+        &self.client
+    }
 }
 
 fn connection_builder(

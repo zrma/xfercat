@@ -10,7 +10,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::{Action, App, Focus, ProfileAuthentication, ProfileField, Screen},
+    app::{Action, App, ExecutionMode, Focus, ProfileAuthentication, ProfileField, Screen},
     domain::{BrowserEntry, ConnectionProfile, TransferPlanItem},
 };
 
@@ -49,6 +49,11 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
             Vec::new(),
             "No OpenSSH user config found; A adds a manual profile.",
         ),
+        "live-review" => {
+            let mut app = App::demo();
+            app.execution_mode = ExecutionMode::Live;
+            app
+        }
         _ => App::demo(),
     };
 
@@ -60,7 +65,7 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
         "profile-edit" => {
             app.update(Action::EditProfile);
         }
-        "workspace" | "rename" | "review" | "results" => {
+        "workspace" | "rename" | "review" | "live-review" | "results" => {
             app.update(Action::Activate);
             app.update(Action::AddToPlan);
             app.update(Action::NextFocus);
@@ -73,11 +78,11 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
                 app.update(Action::AddToPlan);
                 app.update(Action::NextFocus);
             }
-            if matches!(kind, "rename" | "review") {
+            if matches!(kind, "rename" | "review" | "live-review") {
                 app.update(Action::BeginRename);
                 app.rename_buffer = "service-copy.log".into();
             }
-            if kind == "review" {
+            if matches!(kind, "review" | "live-review") {
                 app.update(Action::Activate);
                 app.update(Action::MovePlanUp);
                 app.update(Action::ReviewPlan);
@@ -89,7 +94,7 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
         _ => {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "snapshot must be connections, openssh, openssh-empty, profile-add, profile-edit, workspace, rename, review, or results",
+                "snapshot must be connections, openssh, openssh-empty, profile-add, profile-edit, workspace, rename, review, live-review, or results",
             ));
         }
     }
@@ -341,7 +346,7 @@ fn render_workspace(frame: &mut Frame<'_>, app: &mut App) {
         footer,
         &[
             "Tab Focus   ↑/↓ Move   Enter Open   Backspace Parent",
-            "Space Add   D Remove   N Rename   Shift+K/J Reorder",
+            "Space/S Add   D Remove   N Rename   Shift+K/J Reorder",
             "P Policy   R Review   Esc Connections   Q Quit",
         ],
         &app.status,
@@ -381,7 +386,11 @@ fn render_browser(
 }
 
 fn render_waybill(frame: &mut Frame<'_>, area: Rect, app: &mut App) {
-    let title = format!("[WAYBILL] {} item(s) · preview only", app.plan.len());
+    let boundary = match app.execution_mode {
+        ExecutionMode::Fixture => "preview only",
+        ExecutionMode::Live => "review before write",
+    };
+    let title = format!("[WAYBILL] {} item(s) · {boundary}", app.plan.len());
     let items = if app.plan.is_empty() {
         vec![ListItem::new(vec![
             Line::styled("No staged transfers.", Style::default().fg(Color::DarkGray)),
@@ -415,7 +424,12 @@ fn waybill_item(item: &TransferPlanItem) -> ListItem<'static> {
         Line::from(vec![
             Span::raw(format!("   → {}  ", item.destination.display())),
             Span::styled(
-                format!("[{}] [{}]", item.conflict_policy, item.state),
+                format!(
+                    "[{}] [{}] [{}]",
+                    item.conflict_policy,
+                    item.destination_expectation.short_label(),
+                    item.state
+                ),
                 Style::default().fg(Color::Yellow),
             ),
         ]),
@@ -426,9 +440,13 @@ fn render_review(frame: &mut Frame<'_>, app: &App) {
     let area = centered_rect(88, 76, frame.area());
     frame.render_widget(Clear, area);
 
+    let review_title = match app.execution_mode {
+        ExecutionMode::Fixture => "DRY-RUN TRANSFER REVIEW",
+        ExecutionMode::Live => "TRANSFER EXECUTION REVIEW",
+    };
     let mut lines = vec![
         Line::styled(
-            "DRY-RUN TRANSFER REVIEW",
+            review_title,
             Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
@@ -443,27 +461,38 @@ fn render_review(frame: &mut Frame<'_>, app: &App) {
             item.source.display()
         )));
         lines.push(Line::from(format!(
-            "   → {}  [{}] [{}]",
+            "   → {}  [{}] [{}] [{}]",
             item.destination.display(),
             item.conflict_policy,
+            item.destination_expectation.short_label(),
             item.state
         )));
     }
-    let action = if app
+    let staged = app
         .plan
         .iter()
-        .any(|item| item.state == crate::domain::TransferState::Staged)
-    {
-        "Enter Run synthetic execution   Esc Back"
-    } else {
-        "Synthetic results preserved   Esc Back"
+        .any(|item| item.state == crate::domain::TransferState::Staged);
+    let (boundary, action) = match (app.execution_mode, staged) {
+        (ExecutionMode::Fixture, true) => (
+            "Synthetic only: no transport adapter or filesystem mutation.",
+            "Enter Run synthetic execution   Esc Back",
+        ),
+        (ExecutionMode::Fixture, false) => (
+            "Synthetic only: no transport adapter or filesystem mutation.",
+            "Synthetic results preserved   Esc Back",
+        ),
+        (ExecutionMode::Live, true) => (
+            "Enter executes actual local/SFTP file writes after validation.",
+            "Enter Execute staged files   Esc Back",
+        ),
+        (ExecutionMode::Live, false) => (
+            "Actual transfer results are preserved item by item.",
+            "Transfer results preserved   Esc Back",
+        ),
     };
     lines.extend([
         Line::from(""),
-        Line::styled(
-            "Synthetic only: no transport adapter or filesystem mutation.",
-            Style::default().fg(Color::Yellow),
-        ),
+        Line::styled(boundary, Style::default().fg(Color::Yellow)),
         Line::from(action),
     ]);
 

@@ -3,7 +3,7 @@
 ## Status
 
 The PoC uses a Rust 2024 core with a Ratatui/Crossterm validation shell. System OpenSSH with a
-typed SFTP client implements the first Unix connection and read-only remote browser. Runtime and
+typed SFTP client implements the first Unix connection, remote browser and regular-file transfer. Runtime and
 transport rationale are recorded in `docs/decisions/0001-poc-runtime.md` and
 `docs/decisions/0003-openssh-sftp-transport.md`.
 
@@ -48,6 +48,7 @@ global `Include`를 syntax-level로 읽되 `ssh -G`, `Match`, effective endpoint
 - destination endpoint and absolute logical path
 - upload or download direction
 - item kind and expected size when known
+- destination missing/kind/size expectation captured at staging or explicit rename
 - conflict policy: ask, overwrite, skip or rename
 - execution state: staged, running, succeeded, failed, skipped or cancelled
 
@@ -59,7 +60,7 @@ plan은 browser focus와 분리되고 item edit, remove, reorder, subset executi
 transport는 structured request와 typed result를 받는다. shell command 문자열을 조합하지
 않고 credential material과 raw diagnostic output를 domain이나 UI log로 누출하지 않는다.
 `TransportRequest` conversion은 source/destination logical path와 upload/download endpoint
-role을 검증하고 item ID, entry kind, expected size와 conflict policy를 immutable snapshot으로
+role을 검증하고 item ID, entry kind, expected size, destination expectation과 conflict policy를 immutable snapshot으로
 보존한다. `TransportResult`는 succeeded, skipped, failed 또는 cancelled outcome만 노출하며
 failure는 stable category와 retryability만 domain에 전달한다.
 
@@ -78,6 +79,20 @@ verification, batch authentication와 bounded timeout을 강제한다. SFTP brow
 canonicalize하고 directory와 regular file만 노출한다. symlink, special file, non-Unicode,
 control-character와 unreadable entry는 제외하고 raw SSH/SFTP diagnostic은 domain이나 UI에
 전달하지 않는다. session은 Workspace를 나가거나 앱을 종료할 때 graceful close한다.
+
+### File Transfer Adapter
+
+upload와 download는 regular file만 허용하고 source kind/size 및 staged destination
+expectation을 실행 직전에 검증한다. destination conflict에서 `ASK`와 `RENAME`은 write 없이
+실패하고, `SKIP`은 terminal skip으로 끝나며, `OVERWRITE`는 preview와 unchanged existing
+regular file에만 허용된다. content는 final destination이 아닌 hidden sibling temporary file에
+streaming하고 close, optional remote fsync, local sync와 exact byte-size 검증을 통과한 뒤
+finalize한다. missing destination은 hard link로 atomic no-replace publish하고 existing overwrite는
+same-directory POSIX rename을 사용한다. remote upload는 각각 `hardlink`와 `posix-rename` SFTP
+extension을 preflight하고 capability가 없으면 temporary write 전에 실패한다. hard-link publish가
+성공한 뒤 temporary link cleanup만 실패한 경우에는 이미 노출된 final destination을 성공으로
+보존한다. 다른 failure path는 best-effort로 temporary sibling을 제거하며 final name에 partial
+content를 직접 쓰지 않는다.
 
 ## Safety Invariants
 
@@ -100,11 +115,12 @@ non-cascading으로 차단한다. representative synthetic executor는 staged it
 terminal state로 전이하고 partial result를 보존하지만 filesystem과 network를 호출하지 않는다.
 `src/domain.rs`가 transfer types,
 `src/app.rs`가 interaction state, `src/ui.rs`가 Ratatui rendering과 deterministic snapshot을
-소유한다. 현재 runtime은 `src/localfs.rs`와 `src/sftp.rs`의 actual browser adapter를 사용하고,
-file mutation은 후속 execution slice에서 같은 domain contract에 연결한다.
+소유한다. 현재 runtime은 `src/localfs.rs`와 `src/sftp.rs`의 actual browser adapter 및
+`src/transfer_io.rs`의 actual file mutation adapter를 사용한다.
 
 ## Deferred Decisions
 
 - final TUI or GUI product interface
 - effective OpenSSH config, conditional `Match` and host-verification resolution
 - plan persistence format and migration policy
+- progress, cancellation, retry and resume contract

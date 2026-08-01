@@ -56,7 +56,7 @@ fn workspace_snapshot_shows_focusable_browsers_and_exact_waybill_endpoints() {
     assert!(snapshot.contains("[WAYBILL] 2 item(s)"));
     assert!(snapshot.contains("local:/workspace/outgoing/app.tar.gz"));
     assert!(snapshot.contains("dev-box:/srv/xfercat/app.tar.gz"));
-    assert!(snapshot.contains("[ASK] [STAGED]"));
+    assert!(snapshot.contains("[ASK] [DEST:MISSING] [STAGED]"));
 }
 
 #[test]
@@ -70,6 +70,16 @@ fn review_snapshot_is_explicitly_non_executing() {
     let download = snapshot.find("#2 ↓").expect("download item");
     let upload = snapshot.find("#1 ↑").expect("upload item");
     assert!(download < upload, "reordered item must render first");
+}
+
+#[test]
+fn live_review_snapshot_discloses_actual_write_boundary_and_destination_state() {
+    let snapshot = ui::snapshot("live-review").expect("live review snapshot");
+
+    assert!(snapshot.contains("TRANSFER EXECUTION REVIEW"));
+    assert!(snapshot.contains("actual local/SFTP file writes"));
+    assert!(snapshot.contains("Enter Execute staged files"));
+    assert!(snapshot.contains("DEST:MISSING"));
 }
 
 #[test]
@@ -110,7 +120,7 @@ fn compact_terminal_keeps_connection_auth_and_all_workspace_keys_visible() {
     assert!(profile.contains("Tab/Shift+Tab Field"));
     assert!(profile.contains("Enter Save   Esc Cancel"));
     assert!(workspace.contains("Enter Open   Backspace Parent"));
-    assert!(workspace.contains("Space Add   D Remove"));
+    assert!(workspace.contains("Space/S Add   D Remove"));
     assert!(workspace.contains("N Rename   Shift+K/J Reorder"));
     assert!(workspace.contains("Esc Connections   Q Quit"));
     assert!(results.contains("[SUCCEEDED]"));

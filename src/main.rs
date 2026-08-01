@@ -4,7 +4,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use xfercat::{
     app::{Action, App, Focus, Screen},
     domain::ConnectionProfile,
-    localfs, openssh,
+    executor, localfs, openssh,
     sftp::{ConnectionOptions, RemoteDirectory, SftpFailure, SftpSession},
     ui,
 };
@@ -25,7 +25,7 @@ fn main() -> io::Result<()> {
         _ => {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "usage: xfercat [--ssh-config <path>] | [--snapshot connections|openssh|openssh-empty|profile-add|profile-edit|workspace|rename|review|results]",
+                "usage: xfercat [--ssh-config <path>] | [--snapshot connections|openssh|openssh-empty|profile-add|profile-edit|workspace|rename|review|live-review|results]",
             ));
         }
     };
@@ -86,6 +86,30 @@ fn run_interactive(
                     }
                     Err(error) => app.status = error.status().into(),
                 }
+            } else if action == Action::Activate && app.screen == Screen::Review {
+                let Some(connected) = session.as_ref() else {
+                    app.status = "Remote session is not available; no files were changed.".into();
+                    continue;
+                };
+                let Some(profile_id) = app.connected_profile_id.clone() else {
+                    app.status = "Active profile is not available; no files were changed.".into();
+                    continue;
+                };
+                app.status = "Executing validated file transfers...".into();
+                terminal.draw(|frame| ui::render(frame, &mut app))?;
+                let summary = runtime.block_on(executor::execute_live(
+                    &mut app.plan,
+                    &profile_id,
+                    connected,
+                ));
+                app.status = if summary.total() == 0 {
+                    "No staged transfer items were executed.".into()
+                } else {
+                    format!(
+                        "Actual transfer: {} succeeded, {} failed, {} skipped, {} cancelled.",
+                        summary.succeeded, summary.failed, summary.skipped, summary.cancelled
+                    )
+                };
             } else if matches!(action, Action::Activate | Action::NavigateParent)
                 && app.screen == Screen::Workspace
             {
@@ -122,10 +146,14 @@ fn run_interactive(
                     }
                 }
             } else {
+                let leaving_review = action == Action::Back && app.screen == Screen::Review;
                 if action == Action::Back && app.screen == Screen::Workspace {
                     close_session(&runtime, &mut session);
                 }
                 app.update(action);
+                if leaving_review {
+                    refresh_workspace_browsers(&runtime, &mut app, session.as_ref());
+                }
             }
         }
     }
@@ -162,6 +190,30 @@ fn close_session(runtime: &tokio::runtime::Runtime, session: &mut Option<SftpSes
     if let Some(session) = session.take() {
         let _ = runtime.block_on(session.close());
     }
+}
+
+fn refresh_workspace_browsers(
+    runtime: &tokio::runtime::Runtime,
+    app: &mut App,
+    session: Option<&SftpSession>,
+) {
+    let local_path = app.local_directory.clone();
+    let local_ok = localfs::read_directory(local_path)
+        .map(|directory| app.replace_local_directory(directory))
+        .is_ok();
+    let remote_path = app.remote_directory.clone();
+    let remote_ok = session.is_some_and(|session| {
+        runtime
+            .block_on(session.read_directory(remote_path))
+            .map(|directory| app.replace_remote_directory(directory))
+            .is_ok()
+    });
+    app.status = match (local_ok, remote_ok) {
+        (true, true) => "Transfer results preserved; both browsers refreshed.".into(),
+        (true, false) => "Transfer results preserved; remote refresh failed.".into(),
+        (false, true) => "Transfer results preserved; local refresh failed.".into(),
+        (false, false) => "Transfer results preserved; browser refresh failed.".into(),
+    };
 }
 
 fn action_for(screen: Screen, code: KeyCode) -> Option<Action> {
@@ -202,7 +254,7 @@ fn action_for(screen: Screen, code: KeyCode) -> Option<Action> {
         KeyCode::Char('a' | 'A') => Some(Action::AddProfile),
         KeyCode::Char('e' | 'E') => Some(Action::EditProfile),
         KeyCode::Char('d' | 'D') if screen == Screen::Connections => Some(Action::DeleteProfile),
-        KeyCode::Char(' ') => Some(Action::AddToPlan),
+        KeyCode::Char(' ' | 's' | 'S') => Some(Action::AddToPlan),
         KeyCode::Char('d' | 'D') => Some(Action::RemovePlanItem),
         KeyCode::Char('p') => Some(Action::CycleConflictPolicy),
         KeyCode::Char('n' | 'N') => Some(Action::BeginRename),

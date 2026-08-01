@@ -118,3 +118,16 @@ compact snapshots, actual read-only PTY navigation smoke and `scripts/check.sh`.
 
 Evidence: five adapter unit tests, two application regressions, an ephemeral localhost sshd/SFTP
 fixture, actual PTY connect/navigation/close smoke and `scripts/check.sh`.
+
+## 2026-08-01 — P2 Actual File Transfer
+
+- froze destination missing/kind/size expectations at staging and explicit rename
+- executed actual regular-file upload and download through the reviewed Waybill
+- revalidated source and destination state immediately before mutation and finalization
+- streamed to hidden sibling temporary files with close/fsync/sync and exact-size verification
+- used atomic no-replace hard links for missing destinations and rename for explicit overwrite
+- preserved partial item results while continuing later items and cleaned temporary siblings
+
+Evidence: three transfer unit tests, destination-expectation app regression, live Review snapshot,
+192 KiB-plus bidirectional byte-identity SFTP fixture, conflict/stale/partial-plan fixture and
+`scripts/check.sh`.

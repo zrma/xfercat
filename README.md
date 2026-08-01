@@ -5,9 +5,9 @@ Plan first. Transfer once.
 `xfercat`은 저장된 연결을 실수 없이 선택하고, 로컬과 원격 사이의 파일 전송을
 실행 전에 하나의 명시적인 계획으로 검토하는 파일 전송 도구다.
 
-현재 상태는 actual local/remote browser까지 연결된 TUI PoC다. system OpenSSH의 strict
-host verification과 SFTP로 remote filesystem을 read-only 탐색할 수 있다. Review의
-item-level result는 아직 synthetic이며 실제 파일 전송은 아직 구현되지 않았다.
+현재 상태는 actual local/remote browser와 regular-file upload/download가 연결된 TUI PoC다.
+system OpenSSH의 strict host verification과 SFTP를 사용하며, Review의 명시적 `Enter`가
+actual regular-file upload/download를 item별로 실행한다.
 
 ## Product Direction
 
@@ -32,6 +32,7 @@ cargo run -- --snapshot profile-edit
 cargo run -- --snapshot workspace
 cargo run -- --snapshot rename
 cargo run -- --snapshot review
+cargo run -- --snapshot live-review
 ```
 
 일반 실행은 user OpenSSH config와 global `Include`에서 concrete `Host` alias를 자동으로
@@ -40,7 +41,11 @@ imported profile은 read-only alias reference이며 host, user, key와 effective
 해석하지 않는다. profile을 선택하면 system OpenSSH가 strict known-host와 batch mode로 실제
 SFTP session을 열며, runtime LOCAL과 REMOTE pane은 실제 directory를 read-only로 탐색한다.
 `--ssh-config`는 별도 OpenSSH config를 discovery와 connection 양쪽에 동일하게 적용한다.
-Review의 실행 action은 아직 synthetic state transition만 검증하며 실제 file mutation은 하지 않는다.
+Waybill은 staging 시 destination의 missing/file/directory와 size expectation을 freeze한다.
+Review 실행은 source와 destination을 다시 검증하고 sibling temporary file에 쓴 뒤 close,
+size 확인과 atomic finalization을 거쳐 final name을 노출한다. remote upload의 missing
+destination은 SFTP `hardlink` extension, explicit overwrite는 `posix-rename` extension이
+있을 때만 write를 시작한다. atomic publish capability가 없으면 해당 item은 변경 없이 실패한다.
 
 수동으로 추가·편집·삭제한 profile은 현재 process에서만 유지되며 앱을 재시작하면
 OpenSSH import와 빈 manual catalog에서 다시 시작한다. staged Waybill item이 참조하는
@@ -62,12 +67,17 @@ Workspace controls:
 - `Tab`: LOCAL, REMOTE와 WAYBILL focus 이동
 - `Enter`: focused directory 열기
 - `Backspace`: parent directory로 이동
-- `Space`: selected browser item을 Waybill에 추가
+- `Space` / `S`: selected browser item을 Waybill에 추가
 - `N`: destination filename rename
 - `Shift+K` / `Shift+J`: selected Waybill item reorder
 - `P`: conflict policy 변경
 - `R`: exact transfer plan Review
-- `Enter` in Review: synthetic item results 실행; 실제 파일은 변경하지 않음
+- `Enter` in Review: staged regular-file upload/download 실제 실행
+
+현재 transfer는 regular file만 지원한다. directory/symlink transfer, progress UI, 실행 중
+cancellation, resume/retry와 persistent plan은 아직 구현하지 않았다. `ASK`와 `RENAME`은
+existing destination을 자동 변경하지 않는다. `P`로 explicit `OVERWRITE`/`SKIP`을 고르거나
+`N`으로 검토 가능한 exact destination name을 먼저 바꿔야 한다.
 
 ## Repository Workflow
 

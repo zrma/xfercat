@@ -1,6 +1,7 @@
 use crate::domain::{
     Authentication, BrowserEntry, ConflictPolicy, ConnectionProfile, ConnectionProfileSource,
-    Endpoint, EntryKind, Protocol, TransferDirection, TransferPlanItem, TransferState,
+    DestinationExpectation, Endpoint, EntryKind, Protocol, TransferDirection, TransferPlanItem,
+    TransferState,
 };
 use crate::executor;
 use crate::localfs::LocalDirectory;
@@ -13,6 +14,12 @@ pub enum Screen {
     Workspace,
     Rename,
     Review,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExecutionMode {
+    Fixture,
+    Live,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -170,6 +177,7 @@ pub enum Action {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct App {
     pub screen: Screen,
+    pub execution_mode: ExecutionMode,
     pub focus: Focus,
     pub profiles: Vec<ConnectionProfile>,
     pub selected_profile: usize,
@@ -193,6 +201,7 @@ impl App {
     pub fn demo() -> Self {
         Self {
             screen: Screen::Connections,
+            execution_mode: ExecutionMode::Fixture,
             focus: Focus::Local,
             profiles: vec![
                 ConnectionProfile {
@@ -269,6 +278,7 @@ impl App {
         app.profiles = profiles;
         app.selected_profile = 0;
         app.connected_profile_id = None;
+        app.execution_mode = ExecutionMode::Live;
         app.status = status.into();
         app
     }
@@ -391,8 +401,7 @@ impl App {
             Screen::Review => {
                 if action == Action::Back {
                     self.screen = Screen::Workspace;
-                    self.status =
-                        "Synthetic review closed; no files were transferred by this PoC.".into();
+                    self.status = "Review closed; item results remain preserved.".into();
                 } else if action == Action::Activate {
                     self.execute_synthetic_plan();
                 }
@@ -632,15 +641,23 @@ impl App {
                 self.rename_buffer.pop();
             }
             Action::Activate => {
-                let Some(item) = self.plan.get_mut(self.plan_selection) else {
+                let Some(item) = self.plan.get(self.plan_selection) else {
                     self.screen = Screen::Workspace;
                     self.status = "Waybill item no longer exists.".into();
                     return;
                 };
+                let item_id = item.id;
+                let direction = item.direction;
                 match renamed_destination(&item.destination.path, &self.rename_buffer) {
                     Ok(path) => {
+                        let entries = match direction {
+                            TransferDirection::Upload => &self.remote_entries,
+                            TransferDirection::Download => &self.local_entries,
+                        };
+                        let expectation = destination_expectation(&path, entries);
+                        let item = &mut self.plan[self.plan_selection];
                         item.destination.path = path;
-                        let item_id = item.id;
+                        item.destination_expectation = expectation;
                         self.screen = Screen::Workspace;
                         self.status = format!("Renamed destination for Waybill item #{item_id}.");
                     }
@@ -689,17 +706,22 @@ impl App {
                     self.status = "Directory staging is deferred in this PoC.".into();
                     return;
                 }
+                let destination_path = join_logical_path(&self.remote_directory, &entry.name);
                 TransferPlanItem {
                     id: self.next_plan_id,
                     source: Endpoint::local(entry.path.clone()),
                     destination: Endpoint::remote(
                         profile.id.clone(),
                         profile.label.clone(),
-                        join_logical_path(&self.remote_directory, &entry.name),
+                        destination_path.clone(),
                     ),
                     direction: TransferDirection::Upload,
                     entry_kind: entry.kind,
                     expected_size: entry.size,
+                    destination_expectation: destination_expectation(
+                        &destination_path,
+                        &self.remote_entries,
+                    ),
                     conflict_policy: ConflictPolicy::Ask,
                     state: TransferState::Staged,
                 }
@@ -713,6 +735,7 @@ impl App {
                     self.status = "Directory staging is deferred in this PoC.".into();
                     return;
                 }
+                let destination_path = join_logical_path(&self.local_directory, &entry.name);
                 TransferPlanItem {
                     id: self.next_plan_id,
                     source: Endpoint::remote(
@@ -720,13 +743,14 @@ impl App {
                         profile.label.clone(),
                         entry.path.clone(),
                     ),
-                    destination: Endpoint::local(join_logical_path(
-                        &self.local_directory,
-                        &entry.name,
-                    )),
+                    destination: Endpoint::local(destination_path.clone()),
                     direction: TransferDirection::Download,
                     entry_kind: entry.kind,
                     expected_size: entry.size,
+                    destination_expectation: destination_expectation(
+                        &destination_path,
+                        &self.local_entries,
+                    ),
                     conflict_policy: ConflictPolicy::Ask,
                     state: TransferState::Staged,
                 }
@@ -799,6 +823,16 @@ fn join_logical_path(directory: &str, name: &str) -> String {
     } else {
         format!("{}/{name}", directory.trim_end_matches('/'))
     }
+}
+
+fn destination_expectation(path: &str, entries: &[BrowserEntry]) -> DestinationExpectation {
+    entries.iter().find(|entry| entry.path == path).map_or(
+        DestinationExpectation::Missing,
+        |entry| DestinationExpectation::Existing {
+            kind: entry.kind,
+            size: entry.size,
+        },
+    )
 }
 
 fn remote_parent(path: &str) -> Option<String> {
@@ -930,7 +964,8 @@ fn previous_index(current: usize, length: usize) -> usize {
 mod tests {
     use super::{Action, App, Focus, ProfileField, Screen};
     use crate::domain::{
-        Authentication, BrowserEntry, ConflictPolicy, ConnectionProfile, EntryKind, TransferState,
+        Authentication, BrowserEntry, ConflictPolicy, ConnectionProfile, DestinationExpectation,
+        EntryKind, TransferState,
     };
     use crate::localfs::LocalDirectory;
     use crate::sftp::RemoteDirectory;
@@ -1388,6 +1423,47 @@ mod tests {
         assert_eq!(app.plan[0].destination.path, "/actual/remote/app.tar.gz");
         assert_eq!(app.plan[1].source.path, "/srv/xfercat/service.log");
         assert_eq!(app.plan[1].destination.path, "/actual/local/service.log");
+        assert_eq!(
+            app.plan[0].destination_expectation,
+            DestinationExpectation::Missing
+        );
+        assert_eq!(
+            app.plan[1].destination_expectation,
+            DestinationExpectation::Missing
+        );
+    }
+
+    #[test]
+    fn staging_and_explicit_rename_freeze_destination_expectations() {
+        let mut app = App::demo();
+        app.remote_entries.push(BrowserEntry {
+            name: "app.tar.gz".into(),
+            path: "/srv/xfercat/app.tar.gz".into(),
+            kind: EntryKind::File,
+            size: Some(99),
+        });
+        app.update(Action::Activate);
+        app.update(Action::AddToPlan);
+        assert_eq!(
+            app.plan[0].destination_expectation,
+            DestinationExpectation::Existing {
+                kind: EntryKind::File,
+                size: Some(99)
+            }
+        );
+
+        app.focus = Focus::Waybill;
+        app.update(Action::BeginRename);
+        clear_rename_buffer(&mut app);
+        for character in "app-copy.tar.gz".chars() {
+            app.update(Action::InputRenameChar(character));
+        }
+        app.update(Action::Activate);
+
+        assert_eq!(
+            app.plan[0].destination_expectation,
+            DestinationExpectation::Missing
+        );
     }
 
     #[test]

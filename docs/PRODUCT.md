@@ -3,8 +3,9 @@
 ## Status
 
 The core interaction, including OpenSSH alias import, process-lifetime manual profile
-add/edit/delete and item-level synthetic execution results, is available as a TUI PoC. Effective
-connection resolution, real file transfer and persistent connection storage are not implemented.
+add/edit/delete, actual SFTP browsing and item-level regular-file transfer results, is available as
+a TUI PoC. Persistent connection/plan storage, recursive transfer, progress and cancellation are
+not implemented.
 
 ## Problem
 
@@ -33,7 +34,7 @@ Tagline: **Plan first. Transfer once.**
 - **Connections**: OpenSSH alias discovery/refresh와 process-lifetime manual profile
   create/edit/delete.
 - **Browser**: local과 remote endpoint를 같은 semantics로 탐색하는 pane.
-- **Waybill**: persistent `TransferPlan`을 검토하고 실행하는 first-class surface.
+- **Waybill**: process-lifetime `TransferPlan`을 검토하고 실행하는 first-class surface.
 - **TransferPlanItem**: source, destination, direction, conflict policy와 execution state의
   명시적인 결합.
 
@@ -57,7 +58,7 @@ Tagline: **Plan first. Transfer once.**
 ## Open Product Decisions
 
 - 최종 product interface를 TUI로 유지할지 native 또는 webview GUI adapter로 확장할지.
-- 첫 transport 범위를 SFTP only로 할지 SCP-compatible operation까지 포함할지.
+- SFTP 다음 transport로 SCP-compatible operation을 포함할지.
 - plan persistence를 process lifetime으로 제한할지 안전한 local draft로 저장할지.
 
 PoC runtime 결정은 `docs/decisions/0001-poc-runtime.md`, 다음 acceptance는

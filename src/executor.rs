@@ -1,5 +1,7 @@
 use crate::{
     domain::{TransferPlanItem, TransferState},
+    sftp::SftpSession,
+    transfer_io,
     transport::{
         TransportFailureKind, TransportOutcome, TransportRequest, TransportResult,
         TransportSkipReason,
@@ -56,6 +58,45 @@ pub fn execute_representative(plan: &mut [TransferPlanItem]) -> ExecutionSummary
     summary
 }
 
+pub async fn execute_live(
+    plan: &mut [TransferPlanItem],
+    active_profile_id: &str,
+    session: &SftpSession,
+) -> ExecutionSummary {
+    let mut summary = ExecutionSummary::default();
+    for item in plan
+        .iter_mut()
+        .filter(|item| item.state == TransferState::Staged)
+    {
+        item.transition_to(TransferState::Running)
+            .expect("the staged filter guarantees a valid running transition");
+        let outcome = match TransportRequest::try_from(&*item) {
+            Ok(request) if request_uses_profile(&request, active_profile_id) => {
+                transfer_io::execute_request(session, &request).await
+            }
+            Ok(_) | Err(_) => TransportOutcome::Failed {
+                kind: TransportFailureKind::Unsupported,
+                retryable: false,
+            },
+        };
+        let result = TransportResult {
+            item_id: item.id,
+            outcome,
+        };
+        apply_result(item, &result);
+        summary.record(result.outcome);
+    }
+    summary
+}
+
+fn request_uses_profile(request: &TransportRequest, active_profile_id: &str) -> bool {
+    let profile_id = match request.direction {
+        crate::domain::TransferDirection::Upload => request.destination.profile_id.as_deref(),
+        crate::domain::TransferDirection::Download => request.source.profile_id.as_deref(),
+    };
+    profile_id == Some(active_profile_id)
+}
+
 fn representative_outcome(index: usize, expected_size: Option<u64>) -> TransportOutcome {
     match index % 4 {
         0 => TransportOutcome::Succeeded {
@@ -91,7 +132,8 @@ fn apply_result(item: &mut TransferPlanItem, result: &TransportResult) {
 mod tests {
     use super::{ExecutionSummary, execute_representative};
     use crate::domain::{
-        ConflictPolicy, Endpoint, EntryKind, TransferDirection, TransferPlanItem, TransferState,
+        ConflictPolicy, DestinationExpectation, Endpoint, EntryKind, TransferDirection,
+        TransferPlanItem, TransferState,
     };
 
     #[test]
@@ -163,6 +205,7 @@ mod tests {
             direction: TransferDirection::Upload,
             entry_kind: EntryKind::File,
             expected_size: Some(id * 1024),
+            destination_expectation: DestinationExpectation::Missing,
             conflict_policy: ConflictPolicy::Ask,
             state: TransferState::Staged,
         }

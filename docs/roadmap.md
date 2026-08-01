@@ -25,8 +25,9 @@
 - [x] OpenSSH-compatible connection profile import boundary
 - [x] host verification and credential-reference contract
 - [x] SFTP session and remote browser
-- [ ] upload and download execution with progress and cancellation
-- [ ] stale destination and partial-failure handling
+- [x] upload and download execution with item-level results
+- [x] stale destination and partial-failure handling
+- [ ] progress and user cancellation
 
 ## P3 Reliability And Distribution
 

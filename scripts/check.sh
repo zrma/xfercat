@@ -14,7 +14,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test
 cargo build
 
-for snapshot in connections openssh openssh-empty profile-add profile-edit workspace rename review results; do
+for snapshot in connections openssh openssh-empty profile-add profile-edit workspace rename review live-review results; do
   cargo run --quiet -- --snapshot "$snapshot" >/dev/null
 done
 

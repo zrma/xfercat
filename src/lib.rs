@@ -4,5 +4,6 @@ pub mod executor;
 pub mod localfs;
 pub mod openssh;
 pub mod sftp;
+pub mod transfer_io;
 pub mod transport;
 pub mod ui;

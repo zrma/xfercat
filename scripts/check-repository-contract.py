@@ -34,6 +34,7 @@ REQUIRED_FILES = (
     "src/openssh.rs",
     "src/sftp.rs",
     "src/transport.rs",
+    "src/transfer_io.rs",
     "src/ui.rs",
     "tests/interaction.rs",
     "tests/sftp_fixture.rs",
@@ -101,7 +102,9 @@ for markdown in sorted(ROOT.rglob("*.md")):
             fail(f"{markdown.relative_to(ROOT)} has a broken link: {target}")
 
 readme = (ROOT / "README.md").read_text(encoding="utf-8")
-if "아직 구현되지 않았다" not in readme:
-    fail("README must state that the functional client is not implemented")
+if "actual regular-file upload/download" not in readme:
+    fail("README must state the implemented regular-file transfer boundary")
+if "directory/symlink transfer" not in readme:
+    fail("README must state the deferred recursive/symlink boundary")
 
 print("repository contract is valid")

@@ -200,6 +200,28 @@ impl fmt::Display for ConflictPolicy {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DestinationExpectation {
+    Missing,
+    Existing { kind: EntryKind, size: Option<u64> },
+}
+
+impl DestinationExpectation {
+    pub const fn short_label(self) -> &'static str {
+        match self {
+            Self::Missing => "DEST:MISSING",
+            Self::Existing {
+                kind: EntryKind::Directory,
+                ..
+            } => "DEST:DIRECTORY",
+            Self::Existing {
+                kind: EntryKind::File,
+                ..
+            } => "DEST:FILE",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TransferState {
     Staged,
     Running,
@@ -230,6 +252,7 @@ pub struct TransferPlanItem {
     pub direction: TransferDirection,
     pub entry_kind: EntryKind,
     pub expected_size: Option<u64>,
+    pub destination_expectation: DestinationExpectation,
     pub conflict_policy: ConflictPolicy,
     pub state: TransferState,
 }
@@ -270,8 +293,8 @@ pub struct TransferStateTransitionError {
 #[cfg(test)]
 mod tests {
     use super::{
-        ConflictPolicy, Endpoint, EntryKind, TransferDirection, TransferPlanItem, TransferState,
-        TransferStateTransitionError,
+        ConflictPolicy, DestinationExpectation, Endpoint, EntryKind, TransferDirection,
+        TransferPlanItem, TransferState, TransferStateTransitionError,
     };
 
     #[test]
@@ -307,6 +330,7 @@ mod tests {
             direction: TransferDirection::Upload,
             entry_kind: EntryKind::File,
             expected_size: Some(4096),
+            destination_expectation: DestinationExpectation::Missing,
             conflict_policy: ConflictPolicy::Ask,
             state: TransferState::Staged,
         }

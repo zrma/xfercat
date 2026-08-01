@@ -26,6 +26,7 @@ REQUIRED_FILES = (
     "docs/decisions/0002-openssh-profile-import.md",
     "src/app.rs",
     "src/domain.rs",
+    "src/executor.rs",
     "src/lib.rs",
     "src/main.rs",
     "src/openssh.rs",

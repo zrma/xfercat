@@ -18,7 +18,7 @@
 - [x] Waybill destination rename and stable-ID reorder
 - [x] Waybill add, conflict-policy edit and remove
 - [x] dry-run preview with source, destination, direction and conflict policy
-- [ ] item-level success, failure, skip and cancellation states
+- [x] item-level success, failure, skip and cancellation states
 
 ## P2 Remote Transport
 

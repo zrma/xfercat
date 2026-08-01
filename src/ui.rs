@@ -60,12 +60,19 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
         "profile-edit" => {
             app.update(Action::EditProfile);
         }
-        "workspace" | "rename" | "review" => {
+        "workspace" | "rename" | "review" | "results" => {
             app.update(Action::Activate);
             app.update(Action::AddToPlan);
             app.update(Action::NextFocus);
             app.update(Action::AddToPlan);
             app.update(Action::NextFocus);
+            if kind == "results" {
+                app.update(Action::NextFocus);
+                app.update(Action::AddToPlan);
+                app.update(Action::NextFocus);
+                app.update(Action::AddToPlan);
+                app.update(Action::NextFocus);
+            }
             if matches!(kind, "rename" | "review") {
                 app.update(Action::BeginRename);
                 app.rename_buffer = "service-copy.log".into();
@@ -74,12 +81,15 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
                 app.update(Action::Activate);
                 app.update(Action::MovePlanUp);
                 app.update(Action::ReviewPlan);
+            } else if kind == "results" {
+                app.update(Action::ReviewPlan);
+                app.update(Action::Activate);
             }
         }
         _ => {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "snapshot must be connections, openssh, openssh-empty, profile-add, profile-edit, workspace, rename, or review",
+                "snapshot must be connections, openssh, openssh-empty, profile-add, profile-edit, workspace, rename, review, or results",
             ));
         }
     }
@@ -439,13 +449,22 @@ fn render_review(frame: &mut Frame<'_>, app: &App) {
             item.state
         )));
     }
+    let action = if app
+        .plan
+        .iter()
+        .any(|item| item.state == crate::domain::TransferState::Staged)
+    {
+        "Enter Run synthetic execution   Esc Back"
+    } else {
+        "Synthetic results preserved   Esc Back"
+    };
     lines.extend([
         Line::from(""),
         Line::styled(
-            "PoC only: no transport adapter is connected.",
+            "Synthetic only: no transport adapter or filesystem mutation.",
             Style::default().fg(Color::Yellow),
         ),
-        Line::from("Enter Accept review   Esc Back"),
+        Line::from(action),
     ]);
 
     frame.render_widget(

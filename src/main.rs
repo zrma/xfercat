@@ -16,7 +16,7 @@ fn main() -> io::Result<()> {
     if !arguments.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: xfercat [--snapshot connections|openssh|openssh-empty|profile-add|profile-edit|workspace|rename|review]",
+            "usage: xfercat [--snapshot connections|openssh|openssh-empty|profile-add|profile-edit|workspace|rename|review|results]",
         ));
     }
 

@@ -73,3 +73,14 @@ PTY smoke and `scripts/check.sh`.
 - kept filesystem, subprocess, network, credential and transport-library choices out of scope
 
 Evidence: four focused transport tests, staged metadata app regression and `scripts/check.sh`.
+
+## 2026-08-01 — P1 Synthetic Executor
+
+- guarded `TransferState` transitions from staged through running to one terminal outcome
+- added a deterministic representative executor over the typed transport boundary
+- preserved succeeded, failed, skipped and cancelled results item by item after partial failure
+- prevented terminal items from being implicitly rerun
+- exposed an explicit Review action and result rendering while keeping filesystem/network untouched
+
+Evidence: one state-machine test, three executor tests, Review app regression, staged/results
+snapshots at 110×32 and 80×24, actual PTY smoke and `scripts/check.sh`.

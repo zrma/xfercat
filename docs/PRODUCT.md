@@ -2,9 +2,9 @@
 
 ## Status
 
-The core interaction, including OpenSSH alias import and process-lifetime manual profile
-add/edit/delete, is available as a synthetic TUI PoC. Effective connection resolution, real file
-transfer and persistent connection storage are not implemented.
+The core interaction, including OpenSSH alias import, process-lifetime manual profile
+add/edit/delete and item-level synthetic execution results, is available as a TUI PoC. Effective
+connection resolution, real file transfer and persistent connection storage are not implemented.
 
 ## Problem
 

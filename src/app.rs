@@ -2,6 +2,7 @@ use crate::domain::{
     Authentication, BrowserEntry, ConflictPolicy, ConnectionProfile, ConnectionProfileSource,
     Endpoint, EntryKind, Protocol, TransferDirection, TransferPlanItem, TransferState,
 };
+use crate::executor;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Screen {
@@ -323,9 +324,12 @@ impl App {
             Screen::Workspace => self.update_workspace(action),
             Screen::Rename => self.update_rename(action),
             Screen::Review => {
-                if matches!(action, Action::Back | Action::Activate) {
+                if action == Action::Back {
                     self.screen = Screen::Workspace;
-                    self.status = "Dry-run reviewed; no files were transferred by this PoC.".into();
+                    self.status =
+                        "Synthetic review closed; no files were transferred by this PoC.".into();
+                } else if action == Action::Activate {
+                    self.execute_synthetic_plan();
                 }
             }
         }
@@ -692,6 +696,18 @@ impl App {
         );
     }
 
+    fn execute_synthetic_plan(&mut self) {
+        let summary = executor::execute_representative(&mut self.plan);
+        if summary.total() == 0 {
+            self.status = "No staged items; terminal synthetic results were preserved.".into();
+        } else {
+            self.status = format!(
+                "Synthetic only: {} succeeded, {} failed, {} skipped, {} cancelled.",
+                summary.succeeded, summary.failed, summary.skipped, summary.cancelled
+            );
+        }
+    }
+
     pub fn connected_profile(&self) -> Option<&ConnectionProfile> {
         let id = self.connected_profile_id.as_deref()?;
         self.profiles.iter().find(|profile| profile.id == id)
@@ -822,7 +838,9 @@ fn previous_index(current: usize, length: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::{Action, App, Focus, ProfileField, Screen};
-    use crate::domain::{Authentication, ConflictPolicy, ConnectionProfile, EntryKind};
+    use crate::domain::{
+        Authentication, ConflictPolicy, ConnectionProfile, EntryKind, TransferState,
+    };
 
     #[test]
     fn cancelled_profile_edit_is_isolated_from_connect() {
@@ -1184,6 +1202,29 @@ mod tests {
         app.update(Action::RemovePlanItem);
 
         assert_eq!(app.plan.len(), 1);
+    }
+
+    #[test]
+    fn review_executes_synthetic_results_and_preserves_them_on_back() {
+        let mut app = staged_app();
+
+        app.update(Action::ReviewPlan);
+        app.update(Action::Activate);
+
+        assert_eq!(app.screen, Screen::Review);
+        assert_eq!(app.plan[0].state, TransferState::Succeeded);
+        assert_eq!(app.plan[1].state, TransferState::Failed);
+        assert!(app.status.starts_with("Synthetic only:"));
+
+        app.update(Action::Activate);
+        assert!(
+            app.status
+                .contains("terminal synthetic results were preserved")
+        );
+        app.update(Action::Back);
+        assert_eq!(app.screen, Screen::Workspace);
+        assert_eq!(app.plan[0].state, TransferState::Succeeded);
+        assert_eq!(app.plan[1].state, TransferState::Failed);
     }
 
     #[test]

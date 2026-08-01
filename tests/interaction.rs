@@ -64,12 +64,24 @@ fn review_snapshot_is_explicitly_non_executing() {
     let snapshot = ui::snapshot("review").expect("review snapshot");
 
     assert!(snapshot.contains("DRY-RUN TRANSFER REVIEW"));
-    assert!(snapshot.contains("no transport adapter is connected"));
-    assert!(snapshot.contains("Enter Accept review"));
+    assert!(snapshot.contains("no transport adapter or filesystem mutation"));
+    assert!(snapshot.contains("Enter Run synthetic execution"));
     assert!(snapshot.contains("local:/workspace/incoming/service-copy.log"));
     let download = snapshot.find("#2 ↓").expect("download item");
     let upload = snapshot.find("#1 ↑").expect("upload item");
     assert!(download < upload, "reordered item must render first");
+}
+
+#[test]
+fn synthetic_results_snapshot_preserves_all_terminal_item_states() {
+    let snapshot = ui::snapshot("results").expect("synthetic results snapshot");
+
+    assert!(snapshot.contains("Synthetic only: no transport adapter or filesystem mutation"));
+    assert!(snapshot.contains("[SUCCEEDED]"));
+    assert!(snapshot.contains("[FAILED]"));
+    assert!(snapshot.contains("[SKIPPED]"));
+    assert!(snapshot.contains("[CANCELLED]"));
+    assert!(snapshot.contains("Synthetic results preserved   Esc Back"));
 }
 
 #[test]
@@ -88,6 +100,7 @@ fn compact_terminal_keeps_connection_auth_and_all_workspace_keys_visible() {
     let openssh = ui::snapshot_at("openssh", 80, 24).expect("compact OpenSSH catalog");
     let profile = ui::snapshot_at("profile-edit", 80, 24).expect("compact profile editor");
     let workspace = ui::snapshot_at("workspace", 80, 24).expect("compact workspace");
+    let results = ui::snapshot_at("results", 80, 24).expect("compact synthetic results");
 
     assert!(connections.contains("Key:archive-key"));
     assert!(connections.contains("operator@archive.example"));
@@ -99,4 +112,7 @@ fn compact_terminal_keeps_connection_auth_and_all_workspace_keys_visible() {
     assert!(workspace.contains("Space Add   D Remove"));
     assert!(workspace.contains("N Rename   Shift+K/J Reorder"));
     assert!(workspace.contains("Esc Connections   Q Quit"));
+    assert!(results.contains("[SUCCEEDED]"));
+    assert!(results.contains("[CANCELLED]"));
+    assert!(results.contains("Synthetic results preserved"));
 }

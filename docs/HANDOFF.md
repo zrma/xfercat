@@ -18,6 +18,8 @@
   `I` refresh와 read-only provenance를 제공한다. discovery는 subprocess와 network를 사용하지 않는다.
 - staged file kind와 expected size를 보존하고 exact endpoint를 검증하는 typed
   `TransportRequest` 및 raw diagnostic text가 없는 typed result boundary가 준비됐다.
+- Review의 명시적 action이 representative synthetic executor를 실행해 item별 succeeded,
+  failed, skipped와 cancelled result를 보존한다. terminal item은 암묵적으로 재실행하지 않는다.
 - `--snapshot`과 Ratatui `TestBackend`가 110×32 및 80×24 representative state를 검증한다.
 - canonical validation은 `scripts/check.sh`가 소유한다.
 - public remote가 구성됐다. license, transport library와 최종 GUI/TUI 제품 선택은
@@ -29,8 +31,7 @@
 
 권장 순서는 다음과 같다.
 
-1. item-level success, failure, skip과 cancellation state transition을 synthetic executor로 검증한다.
-2. explicit connection 직전 effective OpenSSH config, host verification과 transport
+1. explicit connection 직전 effective OpenSSH config, host verification과 transport
    interoperability를 별도 decision으로 비교한다.
 
 ## Boundaries

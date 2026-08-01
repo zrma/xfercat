@@ -24,6 +24,8 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - stable-ID Waybill reorder reflected in Review
 - immutable typed transport request conversion with endpoint/path validation
 - typed transport success, skip, failure and cancellation result contract without raw diagnostics
+- guarded staged-running-terminal item transitions and representative synthetic executor
+- explicit Review execution action with partial result preservation and terminal result rendering
 - profile-selection, exact-endpoint and Waybill interaction tests
 - deterministic 110×32 and compact 80×24 terminal snapshots
 
@@ -33,7 +35,6 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - effective OpenSSH config, conditional `Match` and authentication resolution
 - real connection establishment
 - filesystem-backed local or remote browser
-- item-level execution results
 - transfer execution
 - network transport
 - packaging, release or updater

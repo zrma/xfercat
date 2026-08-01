@@ -202,12 +202,22 @@ impl fmt::Display for ConflictPolicy {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TransferState {
     Staged,
+    Running,
+    Succeeded,
+    Failed,
+    Skipped,
+    Cancelled,
 }
 
 impl fmt::Display for TransferState {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Staged => formatter.write_str("STAGED"),
+            Self::Running => formatter.write_str("RUNNING"),
+            Self::Succeeded => formatter.write_str("SUCCEEDED"),
+            Self::Failed => formatter.write_str("FAILED"),
+            Self::Skipped => formatter.write_str("SKIPPED"),
+            Self::Cancelled => formatter.write_str("CANCELLED"),
         }
     }
 }
@@ -222,4 +232,83 @@ pub struct TransferPlanItem {
     pub expected_size: Option<u64>,
     pub conflict_policy: ConflictPolicy,
     pub state: TransferState,
+}
+
+impl TransferPlanItem {
+    pub fn transition_to(
+        &mut self,
+        next: TransferState,
+    ) -> Result<(), TransferStateTransitionError> {
+        let allowed = matches!(
+            (self.state, next),
+            (TransferState::Staged, TransferState::Running)
+                | (
+                    TransferState::Running,
+                    TransferState::Succeeded
+                        | TransferState::Failed
+                        | TransferState::Skipped
+                        | TransferState::Cancelled
+                )
+        );
+        if !allowed {
+            return Err(TransferStateTransitionError {
+                from: self.state,
+                to: next,
+            });
+        }
+        self.state = next;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TransferStateTransitionError {
+    pub from: TransferState,
+    pub to: TransferState,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        ConflictPolicy, Endpoint, EntryKind, TransferDirection, TransferPlanItem, TransferState,
+        TransferStateTransitionError,
+    };
+
+    #[test]
+    fn transfer_state_requires_running_before_a_terminal_result() {
+        let mut item = plan_item();
+
+        assert_eq!(
+            item.transition_to(TransferState::Succeeded),
+            Err(TransferStateTransitionError {
+                from: TransferState::Staged,
+                to: TransferState::Succeeded,
+            })
+        );
+        item.transition_to(TransferState::Running)
+            .expect("staged item can start");
+        item.transition_to(TransferState::Succeeded)
+            .expect("running item can succeed");
+        assert_eq!(item.state, TransferState::Succeeded);
+        assert_eq!(
+            item.transition_to(TransferState::Running),
+            Err(TransferStateTransitionError {
+                from: TransferState::Succeeded,
+                to: TransferState::Running,
+            })
+        );
+    }
+
+    fn plan_item() -> TransferPlanItem {
+        TransferPlanItem {
+            id: 1,
+            source: Endpoint::local("/outgoing/report.bin"),
+            destination: Endpoint::remote("profile-a", "remote-a", "/incoming/report.bin"),
+            direction: TransferDirection::Upload,
+            entry_kind: EntryKind::File,
+            expected_size: Some(4096),
+            conflict_policy: ConflictPolicy::Ask,
+            state: TransferState::Staged,
+        }
+    }
 }

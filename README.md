@@ -36,8 +36,9 @@ cargo run -- --snapshot review
 일반 실행은 user OpenSSH config와 global `Include`에서 concrete `Host` alias를 자동으로
 가져온다. wildcard, negated pattern과 conditional include는 picker entry로 만들지 않는다.
 imported profile은 read-only alias reference이며 host, user, key와 effective config를 복제하거나
-해석하지 않는다. Browser path와 전송 결과는 synthetic이고 Review의 실행 action도
-typed state transition만 검증하며 실제 I/O를 수행하지 않는다.
+해석하지 않는다. runtime LOCAL pane은 실제 current directory를 read-only로 탐색한다. REMOTE
+pane과 전송 결과는 아직 synthetic이고 Review의 실행 action도 typed state transition만
+검증하며 실제 I/O를 수행하지 않는다.
 
 수동으로 추가·편집·삭제한 profile은 현재 process에서만 유지되며 앱을 재시작하면
 OpenSSH import와 빈 manual catalog에서 다시 시작한다. staged Waybill item이 참조하는
@@ -57,6 +58,8 @@ Connection controls:
 Workspace controls:
 
 - `Tab`: LOCAL, REMOTE와 WAYBILL focus 이동
+- `Enter`: focused directory 열기
+- `Backspace`: parent directory로 이동
 - `Space`: selected browser item을 Waybill에 추가
 - `N`: destination filename rename
 - `Shift+K` / `Shift+J`: selected Waybill item reorder

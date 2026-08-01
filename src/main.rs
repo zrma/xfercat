@@ -3,7 +3,7 @@ use std::{env, io};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use xfercat::{
     app::{Action, App, Screen},
-    openssh, ui,
+    localfs, openssh, ui,
 };
 
 fn main() -> io::Result<()> {
@@ -21,7 +21,20 @@ fn main() -> io::Result<()> {
     }
 
     let discovery = openssh::discover_home();
-    let app = App::runtime(discovery.profiles(), discovery.status());
+    let discovery_status = discovery.status();
+    let mut app = App::runtime(discovery.profiles(), discovery_status.clone());
+    match env::current_dir().and_then(localfs::read_directory) {
+        Ok(current) => {
+            app.replace_local_directory(current);
+            app.status = discovery_status;
+        }
+        Err(_) => {
+            app.local_directory = "<unavailable>".into();
+            app.local_entries.clear();
+            app.local_selection = 0;
+            app.status = format!("{discovery_status} Local directory unavailable.");
+        }
+    }
     ratatui::run(move |terminal| run_interactive(terminal, app))
 }
 
@@ -38,6 +51,20 @@ fn run_interactive(terminal: &mut ratatui::DefaultTerminal, mut app: App) -> io:
             if action == Action::RefreshOpenSshProfiles {
                 let discovery = openssh::discover_home();
                 app.refresh_open_ssh_profiles(discovery.profiles(), discovery.status());
+            } else if matches!(action, Action::Activate | Action::NavigateParent)
+                && app.screen == Screen::Workspace
+            {
+                let parent = action == Action::NavigateParent;
+                if let Some(target) = app.local_navigation_target(parent) {
+                    match localfs::read_directory(target) {
+                        Ok(directory) => app.replace_local_directory(directory),
+                        Err(_) => app.status = "Local directory could not be opened.".into(),
+                    }
+                } else if !parent && app.focus == xfercat::app::Focus::Local {
+                    app.status = "Selected local file; press Space to stage it.".into();
+                } else if app.update(action) {
+                    return Ok(());
+                }
             } else if app.update(action) {
                 return Ok(());
             }
@@ -76,6 +103,7 @@ fn action_for(screen: Screen, code: KeyCode) -> Option<Action> {
         KeyCode::Enter => Some(Action::Activate),
         KeyCode::Esc => Some(Action::Back),
         KeyCode::Tab => Some(Action::NextFocus),
+        KeyCode::Backspace if screen == Screen::Workspace => Some(Action::NavigateParent),
         KeyCode::Char('i' | 'I') if screen == Screen::Connections => {
             Some(Action::RefreshOpenSshProfiles)
         }

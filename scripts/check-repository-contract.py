@@ -29,6 +29,7 @@ REQUIRED_FILES = (
     "src/domain.rs",
     "src/executor.rs",
     "src/lib.rs",
+    "src/localfs.rs",
     "src/main.rs",
     "src/openssh.rs",
     "src/transport.rs",

@@ -318,14 +318,14 @@ fn render_workspace(frame: &mut Frame<'_>, app: &mut App) {
     render_browser(
         frame,
         local,
-        "[LOCAL] /workspace/outgoing",
+        &format!("[LOCAL] {}", app.local_directory),
         &app.local_entries,
         app.local_selection,
         app.focus == Focus::Local,
     );
     let remote_title = app
         .connected_profile()
-        .map(|profile| format!("[REMOTE] {}:/srv/xfercat", profile.label))
+        .map(|profile| format!("[REMOTE] {}:{}", profile.label, app.remote_directory))
         .unwrap_or_else(|| "[REMOTE] disconnected".into());
     render_browser(
         frame,
@@ -340,9 +340,9 @@ fn render_workspace(frame: &mut Frame<'_>, app: &mut App) {
         frame,
         footer,
         &[
-            "Tab Focus   ↑/↓ Move   Space Add   D Remove",
-            "N Rename   Shift+K/J Reorder   P Policy",
-            "R Review   Esc Connections   Q Quit",
+            "Tab Focus   ↑/↓ Move   Enter Open   Backspace Parent",
+            "Space Add   D Remove   N Rename   Shift+K/J Reorder",
+            "P Policy   R Review   Esc Connections   Q Quit",
         ],
         &app.status,
     );

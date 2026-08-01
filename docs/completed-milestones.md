@@ -95,3 +95,14 @@ snapshots at 110×32 and 80×24, actual PTY smoke and `scripts/check.sh`.
 
 Evidence: current crates.io metadata, official rustdoc, local OpenSSH/sshd/SFTP capability check,
 decision 0003 and `scripts/check.sh`.
+
+## 2026-08-01 — P2 Local Filesystem Browser
+
+- replaced runtime synthetic local entries with canonical current-directory filesystem entries
+- added Enter child-directory and Backspace parent navigation
+- preserved regular-file kind, size and exact path in staged transfer items
+- excluded symlink, non-Unicode, control-character, special and unreadable entries without guessing
+- staged upload/download destinations from the current remote/local pane directories
+
+Evidence: three local filesystem tests, two application navigation/staging regressions, full and
+compact snapshots, actual read-only PTY navigation smoke and `scripts/check.sh`.

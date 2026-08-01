@@ -27,6 +27,8 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - guarded staged-running-terminal item transitions and representative synthetic executor
 - explicit Review execution action with partial result preservation and terminal result rendering
 - accepted system OpenSSH/SFTP transport, strict host verification and temporary-write contract
+- actual canonical local filesystem listing, safe entry filtering and directory navigation
+- current-pane exact local/remote path staging
 - profile-selection, exact-endpoint and Waybill interaction tests
 - deterministic 110×32 and compact 80×24 terminal snapshots
 
@@ -35,7 +37,7 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - persistent connection catalog
 - effective OpenSSH config, conditional `Match` and authentication resolution
 - real connection establishment
-- filesystem-backed local or remote browser
+- filesystem-backed remote browser
 - transfer execution
 - network transport
 - packaging, release or updater

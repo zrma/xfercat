@@ -63,6 +63,13 @@ role을 검증하고 item ID, entry kind, expected size와 conflict policy를 im
 보존한다. `TransportResult`는 succeeded, skipped, failed 또는 cancelled outcome만 노출하며
 failure는 stable category와 retryability만 domain에 전달한다.
 
+### Local Filesystem Adapter
+
+runtime local browser는 current working directory를 canonicalize하고 directory와 regular file만
+노출한다. symlink, non-Unicode, control-character와 unreadable entry는 lossy conversion이나
+follow 없이 제외한다. navigation은 read-only이고 staged item은 browser가 읽은 exact canonical
+path, file kind와 size를 freeze한다.
+
 ## Safety Invariants
 
 - 연결 전에 exact profile, endpoint와 host-verification 상태를 보여준다.

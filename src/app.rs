@@ -3,6 +3,7 @@ use crate::domain::{
     Endpoint, EntryKind, Protocol, TransferDirection, TransferPlanItem, TransferState,
 };
 use crate::executor;
+use crate::localfs::LocalDirectory;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Screen {
@@ -152,6 +153,7 @@ pub enum Action {
     InputProfileChar(char),
     BackspaceProfile,
     NextFocus,
+    NavigateParent,
     AddToPlan,
     RemovePlanItem,
     CycleConflictPolicy,
@@ -172,6 +174,8 @@ pub struct App {
     pub selected_profile: usize,
     pub profile_editor: Option<ProfileEditor>,
     pub connected_profile_id: Option<String>,
+    pub local_directory: String,
+    pub remote_directory: String,
     pub local_entries: Vec<BrowserEntry>,
     pub remote_entries: Vec<BrowserEntry>,
     pub local_selection: usize,
@@ -212,6 +216,8 @@ impl App {
             selected_profile: 0,
             profile_editor: None,
             connected_profile_id: None,
+            local_directory: "/workspace/outgoing".into(),
+            remote_directory: "/srv/xfercat".into(),
             local_entries: vec![
                 BrowserEntry {
                     name: "releases".into(),
@@ -311,6 +317,32 @@ impl App {
                 " {conflicts} imported alias(es) conflict with manual profiles."
             ));
         }
+    }
+
+    pub fn replace_local_directory(&mut self, directory: LocalDirectory) {
+        let status = directory.status();
+        self.local_directory = directory.path;
+        self.local_entries = directory.entries;
+        self.local_selection = 0;
+        self.status = status;
+    }
+
+    pub fn local_navigation_target(&self, parent: bool) -> Option<String> {
+        if self.focus != Focus::Local {
+            return None;
+        }
+        if parent {
+            let current = std::path::Path::new(&self.local_directory);
+            return current
+                .parent()
+                .filter(|candidate| *candidate != current)
+                .and_then(std::path::Path::to_str)
+                .map(str::to_owned);
+        }
+        self.local_entries
+            .get(self.local_selection)
+            .filter(|entry| entry.kind == EntryKind::Directory)
+            .map(|entry| entry.path.clone())
     }
 
     pub fn update(&mut self, action: Action) -> bool {
@@ -627,7 +659,7 @@ impl App {
                     destination: Endpoint::remote(
                         profile.id.clone(),
                         profile.label.clone(),
-                        format!("/srv/xfercat/releases/{}", entry.name),
+                        join_logical_path(&self.remote_directory, &entry.name),
                     ),
                     direction: TransferDirection::Upload,
                     entry_kind: entry.kind,
@@ -649,7 +681,10 @@ impl App {
                         profile.label.clone(),
                         entry.path.clone(),
                     ),
-                    destination: Endpoint::local(format!("/workspace/incoming/{}", entry.name)),
+                    destination: Endpoint::local(join_logical_path(
+                        &self.local_directory,
+                        &entry.name,
+                    )),
                     direction: TransferDirection::Download,
                     entry_kind: entry.kind,
                     expected_size: entry.size,
@@ -717,6 +752,14 @@ impl App {
 fn plan_item_references_profile(item: &TransferPlanItem, profile_id: &str) -> bool {
     item.source.profile_id.as_deref() == Some(profile_id)
         || item.destination.profile_id.as_deref() == Some(profile_id)
+}
+
+fn join_logical_path(directory: &str, name: &str) -> String {
+    if directory == "/" {
+        format!("/{name}")
+    } else {
+        format!("{}/{name}", directory.trim_end_matches('/'))
+    }
 }
 
 fn profile_from_editor(
@@ -839,8 +882,9 @@ fn previous_index(current: usize, length: usize) -> usize {
 mod tests {
     use super::{Action, App, Focus, ProfileField, Screen};
     use crate::domain::{
-        Authentication, ConflictPolicy, ConnectionProfile, EntryKind, TransferState,
+        Authentication, BrowserEntry, ConflictPolicy, ConnectionProfile, EntryKind, TransferState,
     };
+    use crate::localfs::LocalDirectory;
 
     #[test]
     fn cancelled_profile_edit_is_isolated_from_connect() {
@@ -1172,10 +1216,65 @@ mod tests {
         app.update(Action::Down);
 
         assert_eq!(staged.source.path, "/workspace/outgoing/app.tar.gz");
-        assert_eq!(staged.destination.path, "/srv/xfercat/releases/app.tar.gz");
+        assert_eq!(staged.destination.path, "/srv/xfercat/app.tar.gz");
         assert_eq!(staged.entry_kind, EntryKind::File);
         assert_eq!(staged.expected_size, Some(438 * 1024 * 1024));
         assert_eq!(app.plan[0], staged);
+    }
+
+    #[test]
+    fn replacing_local_directory_resets_selection_and_exposes_safe_navigation_targets() {
+        let mut app = App::demo();
+        app.local_selection = 2;
+
+        app.replace_local_directory(LocalDirectory {
+            path: "/actual/local".into(),
+            entries: vec![
+                BrowserEntry {
+                    name: "packages".into(),
+                    path: "/actual/local/packages".into(),
+                    kind: EntryKind::Directory,
+                    size: None,
+                },
+                BrowserEntry {
+                    name: "payload.bin".into(),
+                    path: "/actual/local/payload.bin".into(),
+                    kind: EntryKind::File,
+                    size: Some(7),
+                },
+            ],
+            skipped_entries: 1,
+        });
+
+        assert_eq!(app.local_selection, 0);
+        assert_eq!(
+            app.local_navigation_target(false).as_deref(),
+            Some("/actual/local/packages")
+        );
+        assert_eq!(
+            app.local_navigation_target(true).as_deref(),
+            Some("/actual")
+        );
+        assert!(app.status.contains("1 unsafe or unreadable"));
+        app.local_selection = 1;
+        assert!(app.local_navigation_target(false).is_none());
+    }
+
+    #[test]
+    fn staging_uses_current_local_and_remote_directories() {
+        let mut app = App::demo();
+        app.local_directory = "/actual/local".into();
+        app.remote_directory = "/actual/remote".into();
+        app.update(Action::Activate);
+
+        app.update(Action::AddToPlan);
+        app.update(Action::NextFocus);
+        app.update(Action::AddToPlan);
+
+        assert_eq!(app.plan[0].source.path, "/workspace/outgoing/app.tar.gz");
+        assert_eq!(app.plan[0].destination.path, "/actual/remote/app.tar.gz");
+        assert_eq!(app.plan[1].source.path, "/srv/xfercat/service.log");
+        assert_eq!(app.plan[1].destination.path, "/actual/local/service.log");
     }
 
     #[test]
@@ -1247,7 +1346,7 @@ mod tests {
         );
         assert_eq!(
             app.plan[1].destination.path,
-            "/workspace/incoming/service-copy.log"
+            "/workspace/outgoing/service-copy.log"
         );
     }
 

@@ -84,3 +84,14 @@ Evidence: four focused transport tests, staged metadata app regression and `scri
 
 Evidence: one state-machine test, three executor tests, Review app regression, staged/results
 snapshots at 110×32 and 80×24, actual PTY smoke and `scripts/check.sh`.
+
+## 2026-08-01 — OpenSSH SFTP Transport Decision
+
+- selected the system OpenSSH client to preserve effective user config and agent behavior
+- selected `openssh-sftp-client` for typed SFTP v3 operations on Unix
+- required strict known-host verification and non-interactive batch authentication
+- required temporary sibling writes, verification and rename before final destination exposure
+- recorded that cancelling an SFTP future does not guarantee cancellation of an already-sent mutation
+
+Evidence: current crates.io metadata, official rustdoc, local OpenSSH/sshd/SFTP capability check,
+decision 0003 and `scripts/check.sh`.

@@ -24,6 +24,7 @@ REQUIRED_FILES = (
     "docs/completed-milestones.md",
     "docs/decisions/0001-poc-runtime.md",
     "docs/decisions/0002-openssh-profile-import.md",
+    "docs/decisions/0003-openssh-sftp-transport.md",
     "src/app.rs",
     "src/domain.rs",
     "src/executor.rs",

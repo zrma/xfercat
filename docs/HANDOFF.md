@@ -20,6 +20,8 @@
   `TransportRequest` 및 raw diagnostic text가 없는 typed result boundary가 준비됐다.
 - Review의 명시적 action이 representative synthetic executor를 실행해 item별 succeeded,
   failed, skipped와 cancelled result를 보존한다. terminal item은 암묵적으로 재실행하지 않는다.
+- actual transport는 system OpenSSH, strict known-host verification, batch authentication와
+  `openssh-sftp-client`를 사용하기로 결정했다. 구현은 아직 연결되지 않았다.
 - `--snapshot`과 Ratatui `TestBackend`가 110×32 및 80×24 representative state를 검증한다.
 - canonical validation은 `scripts/check.sh`가 소유한다.
 - public remote가 구성됐다. license, transport library와 최종 GUI/TUI 제품 선택은
@@ -31,8 +33,9 @@
 
 권장 순서는 다음과 같다.
 
-1. explicit connection 직전 effective OpenSSH config, host verification과 transport
-   interoperability를 별도 decision으로 비교한다.
+1. actual local filesystem browser와 path-safe staging을 연결한다.
+2. strict OpenSSH/SFTP session과 remote browser를 연결한다.
+3. temporary sibling, verified close와 rename을 사용하는 upload/download execution을 연결한다.
 
 ## Boundaries
 

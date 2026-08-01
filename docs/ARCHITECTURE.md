@@ -2,8 +2,10 @@
 
 ## Status
 
-The PoC uses a Rust 2024 core with a Ratatui/Crossterm validation shell. Transport is not selected.
-The runtime rationale is recorded in `docs/decisions/0001-poc-runtime.md`.
+The PoC uses a Rust 2024 core with a Ratatui/Crossterm validation shell. System OpenSSH with a
+typed SFTP client is selected for the first Unix transport but is not implemented yet. Runtime and
+transport rationale are recorded in `docs/decisions/0001-poc-runtime.md` and
+`docs/decisions/0003-openssh-sftp-transport.md`.
 
 ## Domain Boundary
 
@@ -88,6 +90,5 @@ terminal state로 전이하고 partial result를 보존하지만 filesystem과 n
 
 - final TUI or GUI product interface
 - async runtime and cancellation primitive
-- SFTP library and OpenSSH interoperability boundary
 - effective OpenSSH config, conditional `Match` and host-verification resolution
 - plan persistence format and migration policy

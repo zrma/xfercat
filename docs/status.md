@@ -26,6 +26,7 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - typed transport success, skip, failure and cancellation result contract without raw diagnostics
 - guarded staged-running-terminal item transitions and representative synthetic executor
 - explicit Review execution action with partial result preservation and terminal result rendering
+- accepted system OpenSSH/SFTP transport, strict host verification and temporary-write contract
 - profile-selection, exact-endpoint and Waybill interaction tests
 - deterministic 110×32 and compact 80×24 terminal snapshots
 

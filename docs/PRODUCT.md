@@ -2,9 +2,9 @@
 
 ## Status
 
-The core interaction, including OpenSSH alias import and process-lifetime manual profile add/edit,
-is available as a synthetic TUI PoC. Effective connection resolution, real file transfer and
-persistent connection storage are not implemented.
+The core interaction, including OpenSSH alias import and process-lifetime manual profile
+add/edit/delete, is available as a synthetic TUI PoC. Effective connection resolution, real file
+transfer and persistent connection storage are not implemented.
 
 ## Problem
 
@@ -30,7 +30,8 @@ Tagline: **Plan first. Transfer once.**
 
 ## Core Concepts
 
-- **Connections**: OpenSSH alias discovery/refresh, manual profile create/edit와 future delete.
+- **Connections**: OpenSSH alias discovery/refresh와 process-lifetime manual profile
+  create/edit/delete.
 - **Browser**: local과 remote endpoint를 같은 semantics로 탐색하는 pane.
 - **Waybill**: persistent `TransferPlan`을 검토하고 실행하는 first-class surface.
 - **TransferPlanItem**: source, destination, direction, conflict policy와 execution state의
@@ -40,6 +41,7 @@ Tagline: **Plan first. Transfer once.**
 
 - profile row를 이동하거나 선택하는 동안 protocol과 authentication 설정은 바뀌지 않는다.
 - connection edit는 connect action과 분리된 mode다.
+- profile delete는 staged plan item을 암묵적으로 삭제하거나 endpoint를 재작성하지 않는다.
 - plan item은 browser의 현재 focus나 현재 directory가 바뀌어도 의미가 바뀌지 않는다.
 - overwrite, rename, skip 같은 충돌 정책을 실행 전에 확인할 수 있다.
 - partial failure가 다른 항목의 결과를 지우지 않는다.

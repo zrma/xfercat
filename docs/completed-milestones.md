@@ -52,3 +52,14 @@ PTY add/save/connect/edit/cancel/quit smoke with terminal restoration and `scrip
 
 Evidence: five discovery tests, three import-specific app tests, OpenSSH/empty snapshots, 80×24
 regression, redacted local-config PTY smoke with terminal restoration and `scripts/check.sh`.
+
+## 2026-08-01 — P1 Profile Delete
+
+- added Connections delete action for process-lifetime manual and synthetic profiles
+- kept imported OpenSSH aliases source-owned with edit-config-and-refresh guidance
+- blocked non-cascading deletion while any staged Waybill item references the profile identity
+- cleared an active synthetic connection when its unreferenced profile is deleted
+- preserved deterministic selection for middle, last and empty catalog states
+
+Evidence: four focused delete tests, 110×32 and 80×24 shortcut snapshots, delete/re-add/connect
+PTY smoke and `scripts/check.sh`.

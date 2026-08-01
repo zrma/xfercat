@@ -71,9 +71,10 @@ transport는 structured request와 typed result를 받는다. shell command 문�
 ## Initial Vertical Slice
 
 첫 slice는 실제 private host 없이 synthetic local/remote endpoint를 사용한다. connection
-picker의 OpenSSH alias import/refresh, profile 선택과 process-lifetime manual add/edit, 두 pane 탐색, Waybill item
-add/edit/remove와 dry-run execution preview를 end-to-end로 검증한다. profile edit은 stable
-identity와 staged endpoint를 바꾸지 않는다. `src/domain.rs`가 transfer types,
+picker의 OpenSSH alias import/refresh, profile 선택과 process-lifetime manual add/edit/delete,
+두 pane 탐색, Waybill item add/edit/remove와 dry-run execution preview를 end-to-end로 검증한다.
+profile edit은 stable identity와 staged endpoint를 바꾸지 않고, delete는 staged reference를
+non-cascading으로 차단한다. `src/domain.rs`가 transfer types,
 `src/app.rs`가 interaction state, `src/ui.rs`가 Ratatui rendering과 deterministic snapshot을
 소유한다. network transport는 후속 slice에서 같은 domain contract에 연결한다.
 

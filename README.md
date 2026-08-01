@@ -37,13 +37,16 @@ cargo run -- --snapshot review
 imported profile은 read-only alias reference이며 host, user, key와 effective config를 복제하거나
 해석하지 않는다. Browser path와 전송 결과는 synthetic이고 Review는 dry-run이다.
 
-수동으로 추가·편집한 profile은 현재 process에서만 유지되며 앱을 재시작하면 사라진다.
+수동으로 추가·편집·삭제한 profile은 현재 process에서만 유지되며 앱을 재시작하면
+OpenSSH import와 빈 manual catalog에서 다시 시작한다. staged Waybill item이 참조하는
+profile은 item을 먼저 제거해야 삭제할 수 있다.
 
 Connection controls:
 
 - `I`: OpenSSH config alias 새로고침
 - `A`: process-local manual profile 추가
 - `E`: manual profile 편집; imported profile은 source config에서 관리
+- `D`: manual profile 삭제; imported profile과 staged-reference profile은 안전하게 차단
 - `Tab` / `Shift+Tab`: profile form field 이동
 - `Left` / `Right`: SSH Agent와 key reference 전환
 - `Enter`: profile 저장 또는 selected profile을 synthetic workspace에 선택

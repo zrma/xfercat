@@ -81,8 +81,9 @@ fn action_for(screen: Screen, code: KeyCode) -> Option<Action> {
         }
         KeyCode::Char('a' | 'A') => Some(Action::AddProfile),
         KeyCode::Char('e' | 'E') => Some(Action::EditProfile),
+        KeyCode::Char('d' | 'D') if screen == Screen::Connections => Some(Action::DeleteProfile),
         KeyCode::Char(' ') => Some(Action::AddToPlan),
-        KeyCode::Char('d') => Some(Action::RemovePlanItem),
+        KeyCode::Char('d' | 'D') => Some(Action::RemovePlanItem),
         KeyCode::Char('p') => Some(Action::CycleConflictPolicy),
         KeyCode::Char('n' | 'N') => Some(Action::BeginRename),
         KeyCode::Char('K') => Some(Action::MovePlanUp),

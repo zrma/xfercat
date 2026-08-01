@@ -157,9 +157,9 @@ fn render_connections(frame: &mut Frame<'_>, app: &mut App) {
         .get(app.selected_profile)
         .map(|profile| {
             let guidance = if profile.is_open_ssh() {
-                "Imported profiles are read-only; I refreshes source config."
+                "Imported profiles are read-only; edit source config, then press I."
             } else {
-                "Manual edits remain separate from profile selection."
+                "Edits and deletes remain separate from profile selection."
             };
             vec![
                 Line::from(vec![
@@ -205,7 +205,7 @@ fn render_connections(frame: &mut Frame<'_>, app: &mut App) {
     render_footer(
         frame,
         footer,
-        &["↑/↓ Move   Enter Select   I Refresh   A Manual   E Edit   Q Quit"],
+        &["↑/↓ Move   Enter Select   I Refresh   A Manual   E Edit   D Delete   Q Quit"],
         &app.status,
     );
 }

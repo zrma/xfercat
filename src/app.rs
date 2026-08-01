@@ -143,6 +143,7 @@ pub enum Action {
     Back,
     AddProfile,
     EditProfile,
+    DeleteProfile,
     RefreshOpenSshProfiles,
     NextProfileField,
     PreviousProfileField,
@@ -371,7 +372,48 @@ impl App {
                     }
                 }
             }
+            Action::DeleteProfile => self.delete_selected_profile(),
             _ => {}
+        }
+    }
+
+    fn delete_selected_profile(&mut self) {
+        let Some(profile) = self.profiles.get(self.selected_profile).cloned() else {
+            self.status = "No profile selected; refresh OpenSSH or add one manually.".into();
+            return;
+        };
+        if profile.is_open_ssh() {
+            self.status =
+                "OpenSSH profiles are source-owned; remove the Host entry and press I.".into();
+            return;
+        }
+
+        let reference_count = self
+            .plan
+            .iter()
+            .filter(|item| plan_item_references_profile(item, &profile.id))
+            .count();
+        if reference_count > 0 {
+            self.status = format!(
+                "Cannot delete {}; remove {reference_count} referencing Waybill item(s) first.",
+                profile.label
+            );
+            return;
+        }
+
+        let cleared_active = self.connected_profile_id.as_deref() == Some(profile.id.as_str());
+        self.profiles.remove(self.selected_profile);
+        self.selected_profile = self
+            .selected_profile
+            .min(self.profiles.len().saturating_sub(1));
+        if cleared_active {
+            self.connected_profile_id = None;
+            self.status = format!(
+                "Deleted profile {}; active synthetic connection cleared.",
+                profile.label
+            );
+        } else {
+            self.status = format!("Deleted profile {}.", profile.label);
         }
     }
 
@@ -650,6 +692,11 @@ impl App {
         let id = self.connected_profile_id.as_deref()?;
         self.profiles.iter().find(|profile| profile.id == id)
     }
+}
+
+fn plan_item_references_profile(item: &TransferPlanItem, profile_id: &str) -> bool {
+    item.source.profile_id.as_deref() == Some(profile_id)
+        || item.destination.profile_id.as_deref() == Some(profile_id)
 }
 
 fn profile_from_editor(
@@ -1027,6 +1074,67 @@ mod tests {
 
         assert_eq!(app.profiles[0].id, "dev-box");
         assert_eq!(app.plan[0], staged);
+    }
+
+    #[test]
+    fn deleting_unreferenced_profile_preserves_catalog_selection() {
+        let mut app = App::demo();
+        app.update(Action::Down);
+
+        app.update(Action::DeleteProfile);
+
+        assert_eq!(app.profiles.len(), 1);
+        assert_eq!(app.profiles[0].id, "dev-box");
+        assert_eq!(app.selected_profile, 0);
+        assert_eq!(app.status, "Deleted profile archive.");
+    }
+
+    #[test]
+    fn deleting_active_unreferenced_profile_clears_connection() {
+        let mut app = App::demo();
+        app.update(Action::Down);
+        app.update(Action::Activate);
+        app.update(Action::Back);
+        assert_eq!(app.connected_profile_id.as_deref(), Some("archive"));
+
+        app.update(Action::DeleteProfile);
+
+        assert!(app.connected_profile_id.is_none());
+        assert!(app.profiles.iter().all(|profile| profile.id != "archive"));
+        assert!(app.status.contains("active synthetic connection cleared"));
+    }
+
+    #[test]
+    fn deleting_profile_referenced_by_waybill_is_non_cascading() {
+        let mut app = App::demo();
+        app.update(Action::Activate);
+        app.update(Action::AddToPlan);
+        app.update(Action::Back);
+        let profiles = app.profiles.clone();
+        let plan = app.plan.clone();
+
+        app.update(Action::DeleteProfile);
+
+        assert_eq!(app.profiles, profiles);
+        assert_eq!(app.plan, plan);
+        assert_eq!(app.connected_profile_id.as_deref(), Some("dev-box"));
+        assert!(
+            app.status
+                .contains("remove 1 referencing Waybill item(s) first")
+        );
+    }
+
+    #[test]
+    fn deleting_imported_profile_is_deferred_to_source_config() {
+        let mut app = App::runtime(
+            vec![ConnectionProfile::open_ssh("build-box")],
+            "Imported 1 OpenSSH profile(s).",
+        );
+
+        app.update(Action::DeleteProfile);
+
+        assert_eq!(app.profiles, vec![ConnectionProfile::open_ssh("build-box")]);
+        assert!(app.status.contains("remove the Host entry and press I"));
     }
 
     #[test]

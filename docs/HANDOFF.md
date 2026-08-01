@@ -11,8 +11,9 @@
 - product, architecture, publication과 agent harness contract가 문서화됐다.
 - Connections, local/remote Browser, Waybill add/remove, destination rename, stable reorder와
   dry-run Review가 동작한다.
-- Connections에서 synthetic profile을 process lifetime 동안 추가·편집할 수 있고, edit은
-  stable identity와 이미 staged된 endpoint를 보존한다.
+- Connections에서 synthetic profile을 process lifetime 동안 추가·편집·삭제할 수 있다.
+  edit은 stable identity와 이미 staged된 endpoint를 보존하고, delete는 staged reference가
+  있으면 non-cascading으로 차단하며 active synthetic connection만 안전하게 해제한다.
 - 일반 실행은 user OpenSSH config와 global includes의 concrete aliases를 자동으로 가져오며,
   `I` refresh와 read-only provenance를 제공한다. discovery는 subprocess와 network를 사용하지 않는다.
 - `--snapshot`과 Ratatui `TestBackend`가 110×32 및 80×24 representative state를 검증한다.

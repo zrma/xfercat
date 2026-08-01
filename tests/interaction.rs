@@ -12,6 +12,7 @@ fn connections_snapshot_keeps_profile_attributes_visible() {
     assert!(snapshot.contains("I Refresh"));
     assert!(snapshot.contains("A Manual"));
     assert!(snapshot.contains("E Edit"));
+    assert!(snapshot.contains("D Delete"));
 }
 
 #[test]
@@ -90,7 +91,7 @@ fn compact_terminal_keeps_connection_auth_and_all_workspace_keys_visible() {
 
     assert!(connections.contains("Key:archive-key"));
     assert!(connections.contains("operator@archive.example"));
-    assert!(connections.contains("I Refresh   A Manual   E Edit"));
+    assert!(connections.contains("I Refresh   A Manual   E Edit   D Delete"));
     assert!(openssh.contains("OpenSSH config"));
     assert!(openssh.contains("OpenSSH policy"));
     assert!(profile.contains("Tab/Shift+Tab Field"));

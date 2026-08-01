@@ -17,6 +17,8 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 - Ratatui/Crossterm Connections, Browser, Waybill and Review shell
 - process-lifetime synthetic connection profile add/edit form
 - stable profile identity, duplicate-label rejection and SSH Agent/key-reference selection
+- side-effect-free OpenSSH concrete-alias discovery from user config and global includes
+- startup import, `I` refresh, read-only provenance and empty/manual fallback states
 - destination-leaf rename with invalid-name rejection
 - stable-ID Waybill reorder reflected in Review
 - profile-selection, exact-endpoint and Waybill interaction tests
@@ -26,6 +28,7 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 
 - persistent connection catalog
 - connection profile delete
+- effective OpenSSH config, conditional `Match` and authentication resolution
 - real connection establishment
 - filesystem-backed local or remote browser
 - item-level execution results
@@ -48,5 +51,6 @@ The synthetic product-foundation PoC is executable; real file transfer is not im
 
 - the TUI is a PoC adapter, not a final GUI/TUI product commitment.
 - added and edited profiles return to the synthetic fixture when the process exits.
+- wildcard/conditional OpenSSH rules affect future connection semantics but do not become picker rows.
 - transport library choice can affect OpenSSH compatibility, host verification and credential handling.
 - plan persistence needs a privacy and crash-recovery contract before durable storage is added.

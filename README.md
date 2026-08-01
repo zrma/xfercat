@@ -23,6 +23,8 @@ transfer는 아직 구현되지 않았다.
 ```sh
 cargo run
 cargo run -- --snapshot connections
+cargo run -- --snapshot openssh
+cargo run -- --snapshot openssh-empty
 cargo run -- --snapshot profile-add
 cargo run -- --snapshot profile-edit
 cargo run -- --snapshot workspace
@@ -30,17 +32,21 @@ cargo run -- --snapshot rename
 cargo run -- --snapshot review
 ```
 
-PoC의 profile, path와 전송 결과는 모두 synthetic이다. Review는 dry-run이며 파일을
-전송하거나 덮어쓰지 않는다. 추가·편집한 profile은 현재 process에서만 유지되며 앱을
-재시작하면 초기 fixture로 돌아간다.
+일반 실행은 user OpenSSH config와 global `Include`에서 concrete `Host` alias를 자동으로
+가져온다. wildcard, negated pattern과 conditional include는 picker entry로 만들지 않는다.
+imported profile은 read-only alias reference이며 host, user, key와 effective config를 복제하거나
+해석하지 않는다. Browser path와 전송 결과는 synthetic이고 Review는 dry-run이다.
+
+수동으로 추가·편집한 profile은 현재 process에서만 유지되며 앱을 재시작하면 사라진다.
 
 Connection controls:
 
-- `A`: synthetic profile 추가
-- `E`: selected profile 편집
+- `I`: OpenSSH config alias 새로고침
+- `A`: process-local manual profile 추가
+- `E`: manual profile 편집; imported profile은 source config에서 관리
 - `Tab` / `Shift+Tab`: profile form field 이동
 - `Left` / `Right`: SSH Agent와 key reference 전환
-- `Enter`: profile 저장 또는 selected profile 연결
+- `Enter`: profile 저장 또는 selected profile을 synthetic workspace에 선택
 - `Esc`: form 취소
 
 Workspace controls:

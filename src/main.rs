@@ -3,7 +3,7 @@ use std::{env, io};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use xfercat::{
     app::{Action, App, Screen},
-    ui,
+    openssh, ui,
 };
 
 fn main() -> io::Result<()> {
@@ -16,16 +16,16 @@ fn main() -> io::Result<()> {
     if !arguments.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: xfercat [--snapshot connections|profile-add|profile-edit|workspace|rename|review]",
+            "usage: xfercat [--snapshot connections|openssh|openssh-empty|profile-add|profile-edit|workspace|rename|review]",
         ));
     }
 
-    ratatui::run(run_interactive)
+    let discovery = openssh::discover_home();
+    let app = App::runtime(discovery.profiles(), discovery.status());
+    ratatui::run(move |terminal| run_interactive(terminal, app))
 }
 
-fn run_interactive(terminal: &mut ratatui::DefaultTerminal) -> io::Result<()> {
-    let mut app = App::demo();
-
+fn run_interactive(terminal: &mut ratatui::DefaultTerminal, mut app: App) -> io::Result<()> {
     loop {
         terminal.draw(|frame| ui::render(frame, &mut app))?;
         let Event::Key(key) = event::read()? else {
@@ -34,10 +34,13 @@ fn run_interactive(terminal: &mut ratatui::DefaultTerminal) -> io::Result<()> {
         if key.kind != KeyEventKind::Press {
             continue;
         }
-        if let Some(action) = action_for(app.screen, key.code)
-            && app.update(action)
-        {
-            return Ok(());
+        if let Some(action) = action_for(app.screen, key.code) {
+            if action == Action::RefreshOpenSshProfiles {
+                let discovery = openssh::discover_home();
+                app.refresh_open_ssh_profiles(discovery.profiles(), discovery.status());
+            } else if app.update(action) {
+                return Ok(());
+            }
         }
     }
 }
@@ -73,6 +76,9 @@ fn action_for(screen: Screen, code: KeyCode) -> Option<Action> {
         KeyCode::Enter => Some(Action::Activate),
         KeyCode::Esc => Some(Action::Back),
         KeyCode::Tab => Some(Action::NextFocus),
+        KeyCode::Char('i' | 'I') if screen == Screen::Connections => {
+            Some(Action::RefreshOpenSshProfiles)
+        }
         KeyCode::Char('a' | 'A') => Some(Action::AddProfile),
         KeyCode::Char('e' | 'E') => Some(Action::EditProfile),
         KeyCode::Char(' ') => Some(Action::AddToPlan),

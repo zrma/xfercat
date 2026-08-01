@@ -8,9 +8,26 @@ fn connections_snapshot_keeps_profile_attributes_visible() {
     assert!(snapshot.contains("dev-box"));
     assert!(snapshot.contains("SFTP"));
     assert!(snapshot.contains("SSH Agent"));
-    assert!(snapshot.contains("Enter Connect"));
-    assert!(snapshot.contains("A Add"));
+    assert!(snapshot.contains("Enter Select"));
+    assert!(snapshot.contains("I Refresh"));
+    assert!(snapshot.contains("A Manual"));
     assert!(snapshot.contains("E Edit"));
+}
+
+#[test]
+fn openssh_catalog_shows_provenance_read_only_policy_and_empty_fallback() {
+    let imported = ui::snapshot("openssh").expect("OpenSSH catalog snapshot");
+    let empty = ui::snapshot("openssh-empty").expect("empty OpenSSH catalog snapshot");
+
+    assert!(imported.contains("build-box"));
+    assert!(imported.contains("release-box"));
+    assert!(imported.contains("Host build-box"));
+    assert!(imported.contains("OpenSSH config"));
+    assert!(imported.contains("OpenSSH policy"));
+    assert!(imported.contains("read-only"));
+    assert!(empty.contains("No connection profiles"));
+    assert!(empty.contains("Press I to refresh or A to add manually"));
+    assert!(empty.contains("No OpenSSH user config found"));
 }
 
 #[test]
@@ -67,12 +84,15 @@ fn rename_snapshot_shows_current_destination_and_edit_buffer() {
 #[test]
 fn compact_terminal_keeps_connection_auth_and_all_workspace_keys_visible() {
     let connections = ui::snapshot_at("connections", 80, 24).expect("compact connections");
+    let openssh = ui::snapshot_at("openssh", 80, 24).expect("compact OpenSSH catalog");
     let profile = ui::snapshot_at("profile-edit", 80, 24).expect("compact profile editor");
     let workspace = ui::snapshot_at("workspace", 80, 24).expect("compact workspace");
 
     assert!(connections.contains("Key:archive-key"));
     assert!(connections.contains("operator@archive.example"));
-    assert!(connections.contains("A Add   E Edit"));
+    assert!(connections.contains("I Refresh   A Manual   E Edit"));
+    assert!(openssh.contains("OpenSSH config"));
+    assert!(openssh.contains("OpenSSH policy"));
     assert!(profile.contains("Tab/Shift+Tab Field"));
     assert!(profile.contains("Enter Save   Esc Cancel"));
     assert!(workspace.contains("Space Add   D Remove"));

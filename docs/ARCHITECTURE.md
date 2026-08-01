@@ -25,6 +25,7 @@ UI와 transport 구현은 아래 domain contract를 공유한다.
 
 - stable profile identity
 - display label
+- synthetic, manual 또는 imported OpenSSH provenance
 - protocol and endpoint descriptor
 - username when applicable
 - authentication reference
@@ -32,6 +33,11 @@ UI와 transport 구현은 아래 domain contract를 공유한다.
 
 password, private key 내용, agent socket과 실제 private inventory를 profile payload나 tracked
 fixture에 복제하지 않는다.
+
+Imported OpenSSH profile은 concrete alias reference만 소유한다. startup discovery는 user config와
+global `Include`를 syntax-level로 읽되 `ssh -G`, `Match`, effective endpoint와 authentication을
+평가하지 않는다. wildcard/negated patterns와 conditional includes는 picker entry에서 제외한다.
+이 경계는 `docs/decisions/0002-openssh-profile-import.md`가 소유한다.
 
 ### TransferPlanItem
 
@@ -65,7 +71,7 @@ transport는 structured request와 typed result를 받는다. shell command 문�
 ## Initial Vertical Slice
 
 첫 slice는 실제 private host 없이 synthetic local/remote endpoint를 사용한다. connection
-picker의 profile 선택과 process-lifetime add/edit, 두 pane 탐색, Waybill item
+picker의 OpenSSH alias import/refresh, profile 선택과 process-lifetime manual add/edit, 두 pane 탐색, Waybill item
 add/edit/remove와 dry-run execution preview를 end-to-end로 검증한다. profile edit은 stable
 identity와 staged endpoint를 바꾸지 않는다. `src/domain.rs`가 transfer types,
 `src/app.rs`가 interaction state, `src/ui.rs`가 Ratatui rendering과 deterministic snapshot을
@@ -76,4 +82,5 @@ identity와 staged endpoint를 바꾸지 않는다. `src/domain.rs`가 transfer 
 - final TUI or GUI product interface
 - async runtime and cancellation primitive
 - SFTP library and OpenSSH interoperability boundary
+- effective OpenSSH config, conditional `Match` and host-verification resolution
 - plan persistence format and migration policy

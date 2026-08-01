@@ -2,8 +2,9 @@
 
 ## Status
 
-The core interaction, including process-lifetime profile add/edit, is available as a synthetic TUI
-PoC. Real file transfer and persistent connection storage are not implemented.
+The core interaction, including OpenSSH alias import and process-lifetime manual profile add/edit,
+is available as a synthetic TUI PoC. Effective connection resolution, real file transfer and
+persistent connection storage are not implemented.
 
 ## Problem
 
@@ -20,7 +21,7 @@ Tagline: **Plan first. Transfer once.**
 
 ## Primary Workflow
 
-1. Connections에서 완성된 `ConnectionProfile`을 선택해 접속한다.
+1. Connections에서 imported OpenSSH alias 또는 manual `ConnectionProfile`을 선택한다.
 2. Browser의 local/remote pane에서 파일과 디렉터리를 탐색한다.
 3. 작업을 Waybill에 추가한다.
 4. Waybill에서 source, destination, 방향, 이름과 conflict policy를 검토하거나 수정한다.
@@ -29,7 +30,7 @@ Tagline: **Plan first. Transfer once.**
 
 ## Core Concepts
 
-- **Connections**: profile 목록, 검색, 연결, 명시적 create/edit/delete.
+- **Connections**: OpenSSH alias discovery/refresh, manual profile create/edit와 future delete.
 - **Browser**: local과 remote endpoint를 같은 semantics로 탐색하는 pane.
 - **Waybill**: persistent `TransferPlan`을 검토하고 실행하는 first-class surface.
 - **TransferPlanItem**: source, destination, direction, conflict policy와 execution state의

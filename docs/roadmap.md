@@ -22,7 +22,7 @@
 
 ## P2 Remote Transport
 
-- [ ] OpenSSH-compatible connection profile import boundary
+- [x] OpenSSH-compatible connection profile import boundary
 - [ ] host verification and credential-reference contract
 - [ ] SFTP session and remote browser
 - [ ] upload and download execution with progress and cancellation

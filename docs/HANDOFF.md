@@ -13,6 +13,8 @@
   dry-run Review가 동작한다.
 - Connections에서 synthetic profile을 process lifetime 동안 추가·편집할 수 있고, edit은
   stable identity와 이미 staged된 endpoint를 보존한다.
+- 일반 실행은 user OpenSSH config와 global includes의 concrete aliases를 자동으로 가져오며,
+  `I` refresh와 read-only provenance를 제공한다. discovery는 subprocess와 network를 사용하지 않는다.
 - `--snapshot`과 Ratatui `TestBackend`가 110×32 및 80×24 representative state를 검증한다.
 - canonical validation은 `scripts/check.sh`가 소유한다.
 - public remote가 구성됐다. license, transport library와 최종 GUI/TUI 제품 선택은
@@ -26,7 +28,8 @@
 
 1. filesystem mutation 없이 typed transport request/result boundary를 추가한다.
 2. item-level success, failure, skip과 cancellation state transition을 synthetic executor로 검증한다.
-3. SFTP library와 OpenSSH interoperability를 별도 decision으로 비교한다.
+3. explicit connection 직전 effective OpenSSH config, host verification과 transport
+   interoperability를 별도 decision으로 비교한다.
 
 ## Boundaries
 

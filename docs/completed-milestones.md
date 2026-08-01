@@ -41,3 +41,14 @@ Evidence: focused app tests, the `rename` and `review` snapshots, PTY interactio
 
 Evidence: six profile app tests, `profile-add` and `profile-edit` snapshots, 80×24 regression,
 PTY add/save/connect/edit/cancel/quit smoke with terminal restoration and `scripts/check.sh`.
+
+## 2026-08-01 — P2 OpenSSH Profile Import
+
+- replaced synthetic runtime startup profiles with concrete aliases discovered from user OpenSSH config
+- followed global includes with quoted path, home/environment expansion, globbing and cycle protection
+- skipped wildcard, negated and conditional entries without evaluating `Match` or running subprocesses
+- added startup import, `I` refresh, read-only provenance, empty state and manual fallback UX
+- preserved process-local manual profiles and staged plan items across refresh
+
+Evidence: five discovery tests, three import-specific app tests, OpenSSH/empty snapshots, 80×24
+regression, redacted local-config PTY smoke with terminal restoration and `scripts/check.sh`.

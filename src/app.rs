@@ -1,6 +1,6 @@
 use crate::domain::{
-    Authentication, BrowserEntry, ConflictPolicy, ConnectionProfile, Endpoint, EntryKind, Protocol,
-    TransferDirection, TransferPlanItem, TransferState,
+    Authentication, BrowserEntry, ConflictPolicy, ConnectionProfile, ConnectionProfileSource,
+    Endpoint, EntryKind, Protocol, TransferDirection, TransferPlanItem, TransferState,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -94,14 +94,15 @@ impl ProfileEditor {
         }
     }
 
-    fn edit(profile: &ConnectionProfile) -> Self {
+    fn edit(profile: &ConnectionProfile) -> Option<Self> {
         let (authentication, key_reference) = match &profile.authentication {
             Authentication::SshAgent => (ProfileAuthentication::SshAgent, String::new()),
             Authentication::KeyReference(reference) => {
                 (ProfileAuthentication::KeyReference, reference.clone())
             }
+            Authentication::OpenSshConfig => return None,
         };
-        Self {
+        Some(Self {
             profile_id: Some(profile.id.clone()),
             field: ProfileField::Label,
             label: profile.label.clone(),
@@ -109,7 +110,7 @@ impl ProfileEditor {
             host: profile.host.clone(),
             authentication,
             key_reference,
-        }
+        })
     }
 
     pub const fn is_create(&self) -> bool {
@@ -142,6 +143,7 @@ pub enum Action {
     Back,
     AddProfile,
     EditProfile,
+    RefreshOpenSshProfiles,
     NextProfileField,
     PreviousProfileField,
     ToggleProfileAuthentication,
@@ -189,6 +191,7 @@ impl App {
                 ConnectionProfile {
                     id: "dev-box".into(),
                     label: "dev-box".into(),
+                    source: ConnectionProfileSource::Synthetic,
                     protocol: Protocol::Sftp,
                     user: "deploy".into(),
                     host: "dev.example".into(),
@@ -197,6 +200,7 @@ impl App {
                 ConnectionProfile {
                     id: "archive".into(),
                     label: "archive".into(),
+                    source: ConnectionProfileSource::Synthetic,
                     protocol: Protocol::Sftp,
                     user: "operator".into(),
                     host: "archive.example".into(),
@@ -251,6 +255,62 @@ impl App {
         }
     }
 
+    pub fn runtime(profiles: Vec<ConnectionProfile>, status: impl Into<String>) -> Self {
+        let mut app = Self::demo();
+        app.profiles = profiles;
+        app.selected_profile = 0;
+        app.connected_profile_id = None;
+        app.status = status.into();
+        app
+    }
+
+    pub fn refresh_open_ssh_profiles(
+        &mut self,
+        imported: Vec<ConnectionProfile>,
+        status: impl Into<String>,
+    ) {
+        let selected_id = self
+            .profiles
+            .get(self.selected_profile)
+            .map(|profile| profile.id.clone());
+        self.profiles.retain(|profile| !profile.is_open_ssh());
+
+        let mut conflicts = 0;
+        for profile in imported.into_iter().filter(ConnectionProfile::is_open_ssh) {
+            if self
+                .profiles
+                .iter()
+                .any(|existing| existing.label.eq_ignore_ascii_case(&profile.label))
+            {
+                conflicts += 1;
+            } else {
+                self.profiles.push(profile);
+            }
+        }
+        self.profiles.sort_by(|left, right| {
+            left.label
+                .to_ascii_lowercase()
+                .cmp(&right.label.to_ascii_lowercase())
+        });
+        self.selected_profile = selected_id
+            .as_deref()
+            .and_then(|id| self.profiles.iter().position(|profile| profile.id == id))
+            .unwrap_or(0);
+        if self
+            .connected_profile_id
+            .as_deref()
+            .is_some_and(|id| self.profiles.iter().all(|profile| profile.id != id))
+        {
+            self.connected_profile_id = None;
+        }
+        self.status = status.into();
+        if conflicts > 0 {
+            self.status.push_str(&format!(
+                " {conflicts} imported alias(es) conflict with manual profiles."
+            ));
+        }
+    }
+
     pub fn update(&mut self, action: Action) -> bool {
         if action == Action::Quit {
             return true;
@@ -284,7 +344,13 @@ impl App {
                 if let Some(profile) = self.profiles.get(self.selected_profile) {
                     self.connected_profile_id = Some(profile.id.clone());
                     self.screen = Screen::Workspace;
-                    self.status = format!("Connected to synthetic profile {}.", profile.label);
+                    self.status = format!(
+                        "Selected profile {}; the workspace remains synthetic.",
+                        profile.label
+                    );
+                } else {
+                    self.status =
+                        "No profile selected; refresh OpenSSH or add one manually.".into();
                 }
             }
             Action::AddProfile => {
@@ -294,9 +360,15 @@ impl App {
             }
             Action::EditProfile => {
                 if let Some(profile) = self.profiles.get(self.selected_profile) {
-                    self.profile_editor = Some(ProfileEditor::edit(profile));
-                    self.screen = Screen::ProfileEditor;
-                    self.status = "Edit is isolated from the Connect action.".into();
+                    if let Some(editor) = ProfileEditor::edit(profile) {
+                        self.profile_editor = Some(editor);
+                        self.screen = Screen::ProfileEditor;
+                        self.status = "Edit is isolated from the Select action.".into();
+                    } else {
+                        self.status =
+                            "OpenSSH profiles are read-only; edit the source config and press I."
+                                .into();
+                    }
                 }
             }
             _ => {}
@@ -634,6 +706,12 @@ fn profile_from_editor(
             .clone()
             .unwrap_or_else(|| format!("custom-{next_profile_id}")),
         label: label.into(),
+        source: editor
+            .profile_id
+            .as_deref()
+            .and_then(|id| profiles.iter().find(|profile| profile.id == id))
+            .map(|profile| profile.source)
+            .unwrap_or(ConnectionProfileSource::Manual),
         protocol: Protocol::Sftp,
         user: user.into(),
         host: host.into(),
@@ -693,7 +771,7 @@ fn previous_index(current: usize, length: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::{Action, App, Focus, ProfileField, Screen};
-    use crate::domain::{Authentication, ConflictPolicy};
+    use crate::domain::{Authentication, ConflictPolicy, ConnectionProfile};
 
     #[test]
     fn cancelled_profile_edit_is_isolated_from_connect() {
@@ -842,6 +920,96 @@ mod tests {
                 .authentication,
             super::ProfileAuthentication::KeyReference
         );
+    }
+
+    #[test]
+    fn runtime_catalog_uses_imported_profiles_and_keeps_them_read_only() {
+        let mut app = App::runtime(
+            vec![
+                ConnectionProfile::open_ssh("build-box"),
+                ConnectionProfile::open_ssh("release-box"),
+            ],
+            "Imported 2 OpenSSH profile(s).",
+        );
+
+        assert_eq!(app.profiles.len(), 2);
+        assert!(app.profiles.iter().all(ConnectionProfile::is_open_ssh));
+        assert!(
+            app.profiles
+                .iter()
+                .all(|profile| profile.label != "dev-box")
+        );
+
+        app.update(Action::EditProfile);
+        assert_eq!(app.screen, Screen::Connections);
+        assert!(app.profile_editor.is_none());
+        assert!(app.status.contains("read-only"));
+
+        app.update(Action::Activate);
+        assert_eq!(app.screen, Screen::Workspace);
+        assert_eq!(
+            app.connected_profile_id.as_deref(),
+            Some("openssh:build-box")
+        );
+        assert!(app.status.contains("workspace remains synthetic"));
+    }
+
+    #[test]
+    fn refresh_replaces_imports_but_preserves_manual_profiles_and_staged_plan() {
+        let mut app = App::runtime(
+            vec![ConnectionProfile::open_ssh("build-box")],
+            "Imported 1 OpenSSH profile(s).",
+        );
+        app.update(Action::Activate);
+        app.update(Action::AddToPlan);
+        let staged = app.plan.clone();
+        app.update(Action::Back);
+
+        app.update(Action::AddProfile);
+        input_profile_text(&mut app, "manual-box");
+        app.update(Action::NextProfileField);
+        input_profile_text(&mut app, "builder");
+        app.update(Action::NextProfileField);
+        input_profile_text(&mut app, "manual.example");
+        app.update(Action::Activate);
+        let manual_id = app.profiles[app.selected_profile].id.clone();
+
+        app.refresh_open_ssh_profiles(
+            vec![ConnectionProfile::open_ssh("release-box")],
+            "Imported 1 OpenSSH profile(s).",
+        );
+
+        assert_eq!(app.plan, staged);
+        assert!(app.connected_profile_id.is_none());
+        assert!(app.profiles.iter().any(|profile| profile.id == manual_id));
+        assert!(
+            app.profiles
+                .iter()
+                .any(|profile| profile.id == "openssh:release-box")
+        );
+        assert!(
+            app.profiles
+                .iter()
+                .all(|profile| profile.id != "openssh:build-box")
+        );
+        assert_eq!(app.profiles[app.selected_profile].id, manual_id);
+    }
+
+    #[test]
+    fn empty_runtime_catalog_is_safe_and_manual_add_remains_available() {
+        let mut app = App::runtime(Vec::new(), "No OpenSSH user config found.");
+
+        app.update(Action::Up);
+        app.update(Action::Down);
+        app.update(Action::Activate);
+        app.update(Action::EditProfile);
+
+        assert_eq!(app.screen, Screen::Connections);
+        assert!(app.profiles.is_empty());
+        assert!(app.status.contains("No profile selected"));
+
+        app.update(Action::AddProfile);
+        assert_eq!(app.screen, Screen::ProfileEditor);
     }
 
     #[test]

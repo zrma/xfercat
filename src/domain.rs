@@ -4,10 +4,57 @@ use std::fmt;
 pub struct ConnectionProfile {
     pub id: String,
     pub label: String,
+    pub source: ConnectionProfileSource,
     pub protocol: Protocol,
     pub user: String,
     pub host: String,
     pub authentication: Authentication,
+}
+
+impl ConnectionProfile {
+    pub fn open_ssh(alias: impl Into<String>) -> Self {
+        let alias = alias.into();
+        Self {
+            id: format!("openssh:{alias}"),
+            label: alias.clone(),
+            source: ConnectionProfileSource::OpenSshConfig,
+            protocol: Protocol::Sftp,
+            user: String::new(),
+            host: alias,
+            authentication: Authentication::OpenSshConfig,
+        }
+    }
+
+    pub fn endpoint_summary(&self) -> String {
+        match self.source {
+            ConnectionProfileSource::OpenSshConfig => format!("Host {}", self.host),
+            ConnectionProfileSource::Synthetic | ConnectionProfileSource::Manual => {
+                format!("{}@{}", self.user, self.host)
+            }
+        }
+    }
+
+    pub const fn is_open_ssh(&self) -> bool {
+        matches!(self.source, ConnectionProfileSource::OpenSshConfig)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConnectionProfileSource {
+    Synthetic,
+    Manual,
+    OpenSshConfig,
+}
+
+impl fmt::Display for ConnectionProfileSource {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            Self::Synthetic => "Synthetic fixture",
+            Self::Manual => "Manual process profile",
+            Self::OpenSshConfig => "OpenSSH config",
+        };
+        formatter.write_str(value)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -27,6 +74,7 @@ impl fmt::Display for Protocol {
 pub enum Authentication {
     SshAgent,
     KeyReference(String),
+    OpenSshConfig,
 }
 
 impl Authentication {
@@ -34,6 +82,7 @@ impl Authentication {
         match self {
             Self::SshAgent => "Agent".into(),
             Self::KeyReference(reference) => format!("Key:{reference}"),
+            Self::OpenSshConfig => "OpenSSH".into(),
         }
     }
 }
@@ -43,6 +92,7 @@ impl fmt::Display for Authentication {
         match self {
             Self::SshAgent => formatter.write_str("SSH Agent"),
             Self::KeyReference(reference) => write!(formatter, "Key ref: {reference}"),
+            Self::OpenSshConfig => formatter.write_str("OpenSSH policy"),
         }
     }
 }

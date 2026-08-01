@@ -11,7 +11,7 @@ use ratatui::{
 
 use crate::{
     app::{Action, App, Focus, ProfileAuthentication, ProfileField, Screen},
-    domain::{BrowserEntry, TransferPlanItem},
+    domain::{BrowserEntry, ConnectionProfile, TransferPlanItem},
 };
 
 pub fn render(frame: &mut Frame<'_>, app: &mut App) {
@@ -37,10 +37,23 @@ pub fn snapshot(kind: &str) -> io::Result<String> {
 pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
     let backend = TestBackend::new(width, height);
     let mut terminal = Terminal::new(backend).expect("TestBackend initialization is infallible");
-    let mut app = App::demo();
+    let mut app = match kind {
+        "openssh" => App::runtime(
+            vec![
+                ConnectionProfile::open_ssh("build-box"),
+                ConnectionProfile::open_ssh("release-box"),
+            ],
+            "Imported 2 OpenSSH profile(s); I refreshes the catalog.",
+        ),
+        "openssh-empty" => App::runtime(
+            Vec::new(),
+            "No OpenSSH user config found; A adds a manual profile.",
+        ),
+        _ => App::demo(),
+    };
 
     match kind {
-        "connections" => {}
+        "connections" | "openssh" | "openssh-empty" => {}
         "profile-add" => {
             app.update(Action::AddProfile);
         }
@@ -66,7 +79,7 @@ pub fn snapshot_at(kind: &str, width: u16, height: u16) -> io::Result<String> {
         _ => {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "snapshot must be connections, profile-add, profile-edit, workspace, rename, or review",
+                "snapshot must be connections, openssh, openssh-empty, profile-add, profile-edit, workspace, rename, or review",
             ));
         }
     }
@@ -95,26 +108,37 @@ fn render_connections(frame: &mut Frame<'_>, app: &mut App) {
     let [list_area, detail_area] =
         Layout::horizontal([Constraint::Percentage(58), Constraint::Percentage(42)]).areas(body);
 
-    let profiles = app
-        .profiles
-        .iter()
-        .map(|profile| {
-            ListItem::new(vec![
-                Line::from(format!(
-                    "{:<12} {:<5} {}",
-                    profile.label,
-                    profile.protocol,
-                    profile.authentication.short_label()
-                )),
-                Line::styled(
-                    format!("  {}@{}", profile.user, profile.host),
-                    Style::default().fg(Color::DarkGray),
-                ),
-            ])
-        })
-        .collect::<Vec<_>>();
+    let profiles = if app.profiles.is_empty() {
+        vec![ListItem::new(vec![
+            Line::styled(
+                "No connection profiles.",
+                Style::default().fg(Color::DarkGray),
+            ),
+            Line::from("Press I to refresh or A to add manually."),
+        ])]
+    } else {
+        app.profiles
+            .iter()
+            .map(|profile| {
+                ListItem::new(vec![
+                    Line::from(format!(
+                        "{:<12} {:<5} {}",
+                        profile.label,
+                        profile.protocol,
+                        profile.authentication.short_label()
+                    )),
+                    Line::styled(
+                        format!("  {}", profile.endpoint_summary()),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                ])
+            })
+            .collect::<Vec<_>>()
+    };
     let mut state = ListState::default();
-    state.select(Some(app.selected_profile));
+    if !app.profiles.is_empty() {
+        state.select(Some(app.selected_profile));
+    }
     frame.render_stateful_widget(
         List::new(profiles)
             .block(Block::new().title("[CONNECTIONS]").borders(Borders::ALL))
@@ -128,30 +152,49 @@ fn render_connections(frame: &mut Frame<'_>, app: &mut App) {
         &mut state,
     );
 
-    let profile = &app.profiles[app.selected_profile];
-    let detail = vec![
-        Line::from(vec![
-            Span::styled("Profile    ", Style::default().fg(Color::DarkGray)),
-            Span::raw(&profile.label),
-        ]),
-        Line::from(vec![
-            Span::styled("Protocol   ", Style::default().fg(Color::DarkGray)),
-            Span::raw(profile.protocol.to_string()),
-        ]),
-        Line::from(vec![
-            Span::styled("Endpoint   ", Style::default().fg(Color::DarkGray)),
-            Span::raw(format!("{}@{}", profile.user, profile.host)),
-        ]),
-        Line::from(vec![
-            Span::styled("Auth       ", Style::default().fg(Color::DarkGray)),
-            Span::raw(profile.authentication.to_string()),
-        ]),
-        Line::from(""),
-        Line::styled(
-            "Selecting a row never changes its protocol or auth.",
-            Style::default().fg(Color::Yellow),
-        ),
-    ];
+    let detail = app
+        .profiles
+        .get(app.selected_profile)
+        .map(|profile| {
+            let guidance = if profile.is_open_ssh() {
+                "Imported profiles are read-only; I refreshes source config."
+            } else {
+                "Manual edits remain separate from profile selection."
+            };
+            vec![
+                Line::from(vec![
+                    Span::styled("Profile    ", Style::default().fg(Color::DarkGray)),
+                    Span::raw(profile.label.clone()),
+                ]),
+                Line::from(vec![
+                    Span::styled("Source     ", Style::default().fg(Color::DarkGray)),
+                    Span::raw(profile.source.to_string()),
+                ]),
+                Line::from(vec![
+                    Span::styled("Protocol   ", Style::default().fg(Color::DarkGray)),
+                    Span::raw(profile.protocol.to_string()),
+                ]),
+                Line::from(vec![
+                    Span::styled("Endpoint   ", Style::default().fg(Color::DarkGray)),
+                    Span::raw(profile.endpoint_summary()),
+                ]),
+                Line::from(vec![
+                    Span::styled("Auth       ", Style::default().fg(Color::DarkGray)),
+                    Span::raw(profile.authentication.to_string()),
+                ]),
+                Line::from(""),
+                Line::styled(guidance, Style::default().fg(Color::Yellow)),
+            ]
+        })
+        .unwrap_or_else(|| {
+            vec![
+                Line::styled(
+                    "OpenSSH aliases are discovered without connecting.",
+                    Style::default().fg(Color::Yellow),
+                ),
+                Line::from("Manual profiles remain process-local fallback entries."),
+            ]
+        });
     frame.render_widget(
         Paragraph::new(detail)
             .wrap(Wrap { trim: true })
@@ -162,7 +205,7 @@ fn render_connections(frame: &mut Frame<'_>, app: &mut App) {
     render_footer(
         frame,
         footer,
-        &["↑/↓ Move   Enter Connect   A Add   E Edit   Q Quit"],
+        &["↑/↓ Move   Enter Select   I Refresh   A Manual   E Edit   Q Quit"],
         &app.status,
     );
 }

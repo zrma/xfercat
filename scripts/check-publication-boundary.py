@@ -99,6 +99,8 @@ def self_test() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--stdin", action="store_true", help="scan candidate text from stdin instead of the working tree")
+    parser.add_argument("--label", default="candidate", help="redacted location label used with --stdin")
     args = parser.parse_args()
 
     if args.self_test:
@@ -106,13 +108,16 @@ def main() -> None:
         return
 
     findings: list[str] = []
-    for path in tracked_files():
-        try:
-            text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
-        findings.extend(scan_text(str(path.relative_to(ROOT)), text))
-    findings.extend(scan_text("jj change descriptions", change_descriptions()))
+    if args.stdin:
+        findings.extend(scan_text(args.label, sys.stdin.read()))
+    else:
+        for path in tracked_files():
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            findings.extend(scan_text(str(path.relative_to(ROOT)), text))
+        findings.extend(scan_text("jj change descriptions", change_descriptions()))
 
     if findings:
         print("publication boundary check failed:", file=sys.stderr)

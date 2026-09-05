@@ -131,3 +131,10 @@ fixture, actual PTY connect/navigation/close smoke and `scripts/check.sh`.
 Evidence: three transfer unit tests, destination-expectation app regression, live Review snapshot,
 192 KiB-plus bidirectional byte-identity SFTP fixture, conflict/stale/partial-plan fixture and
 `scripts/check.sh`.
+
+## Record Ownership
+
+위 기록은 각 slice 종료 시점의 acceptance와 검증 범위다. 현재 동작과 한계는
+`docs/ARCHITECTURE.md`, 선택 이유는 `docs/decisions/`, 남은 acceptance는 `docs/roadmap.md`가
+소유한다. 완료 spec과 resolved 질문은 이 artifact로 이관했고 현재 active spec은 없다.
+후속 구현이 대체한 초기 synthetic 동작이나 당시 deferred 항목을 현재 미구현 상태로 읽지 않는다.

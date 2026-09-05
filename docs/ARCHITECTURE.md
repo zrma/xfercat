@@ -124,3 +124,23 @@ terminal state로 전이하고 partial result를 보존하지만 filesystem과 n
 - effective OpenSSH config, conditional `Match` and host-verification resolution
 - plan persistence format and migration policy
 - progress, cancellation, retry and resume contract
+
+## Transfer And Validation Limits
+
+실행 전 kind/size 재검증은 SFTP v3 metadata 기준이다. 같은 크기의 content 변경을 검출하는
+content compare-and-swap이나 모든 외부 writer와의 원자적 조건부 overwrite를 보장하지 않는다.
+`RENAME` 충돌은 자동 이름 생성으로 해결하지 않는다. 사용자가 Waybill에서 새 destination
+filename을 명시하고 새 expectation을 확인한 뒤 다시 review한다.
+
+manual profile 저장은 connect와 분리되고 process lifetime에만 유지된다. invalid/cancel은
+catalog를 바꾸지 않는다. imported profile은 source config가 소유하며 staged reference가 있는
+profile의 삭제는 cascade하지 않는다. Waybill rename은 destination leaf만 바꾸고 source,
+endpoint와 stable item identity를 유지하며 reorder도 payload를 보존한다.
+
+완료된 slice의 focused tests, snapshots, PTY와 격리된 localhost SFTP fixture 결과는
+`docs/completed-milestones.md`가 소유한다. synthetic executor 결과는 state transition 증거다.
+actual transfer는 별도의 bidirectional byte-identity와 conflict/stale/partial-plan fixture로
+검증했다. 이 기록은 임의의 사용자 remote나 directory/symlink transfer를 검증했다는 뜻이
+아니다. non-Unicode path fixture는 Linux에서 검증하며 파일시스템이 해당 이름을 거부하는
+macOS에서는 동일 fixture를 만들 수 없다. cancellation, retry/resume와 persistence는
+`docs/roadmap.md`의 후속 범위다.

@@ -62,3 +62,9 @@ scripts/check.sh
 jj status
 jj diff
 ```
+
+## Completed Work Knowledge
+
+현재 active spec은 없다. 완료 acceptance와 검증 범위는 `docs/completed-milestones.md`,
+유지할 계약과 한계는 `docs/ARCHITECTURE.md`, runtime/import/transport 선택 이유는
+`docs/decisions/`에 이관했다. 다음 reliability slice를 선택하면 새 bounded spec을 연다.

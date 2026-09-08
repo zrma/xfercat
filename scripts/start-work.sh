@@ -44,11 +44,19 @@ Status: planned
 
 ## Goal
 
-- TODO
+- TODO: 완료 후 관찰 가능한 결과를 적는다.
+
+## Context
+
+- 현재 상태와 이 작업이 해결할 문제를 적는다.
 
 ## Scope
 
 - TODO
+
+## Impact
+
+- 영향을 받는 사용자·시스템·운영 경로와 예상 변화를 적는다.
 
 ## Constraints
 

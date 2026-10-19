@@ -24,6 +24,8 @@ checks:
   harness: scripts/check-agent-harness-interface.sh
   repository_contract: scripts/check-repository-contract.py
   publication: scripts/check-publication-boundary.py
+  history: python3 .ai-first/vcs.py
+  closeout: python3 .ai-first/vcs.py --closeout
 
 publication:
   content_standard: public-ready
